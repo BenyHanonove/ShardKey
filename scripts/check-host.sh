@@ -3,9 +3,10 @@
 #
 # Verify that the build machine has the required Debian packages installed.
 # Usage:
-#   scripts/check-host.sh           # check all packages needed for a full build
-#   scripts/check-host.sh --fetch   # check only packages needed for 'make fetch'
-#   scripts/check-host.sh --tool    # check only packages needed for 'make tool'
+#   scripts/check-host.sh             # check all packages needed for a full build
+#   scripts/check-host.sh --fetch     # check only packages needed for 'make fetch'
+#   scripts/check-host.sh --tool      # check only packages needed for 'make tool'
+#   scripts/check-host.sh --busybox   # check only packages needed for 'make busybox'
 
 set -euo pipefail
 
@@ -18,12 +19,15 @@ if [[ $# -gt 0 ]]; then
         --tool)
             MODE="tool"
             ;;
+        --busybox)
+            MODE="busybox"
+            ;;
         --all)
             MODE="all"
             ;;
         *)
             echo "[check-host] ERROR: unknown argument: $1" >&2
-            echo "Usage: $0 [--all | --fetch | --tool]" >&2
+            echo "Usage: $0 [--all | --fetch | --tool | --busybox]" >&2
             exit 2
             ;;
     esac
@@ -64,6 +68,13 @@ TOOL_PACKAGES=(
     musl-tools
 )
 
+BUSYBOX_PACKAGES=(
+    build-essential
+    musl-tools
+    bzip2
+    xz-utils
+)
+
 ALL_PACKAGES=(
     build-essential
     bc
@@ -91,20 +102,41 @@ if [[ "${MODE}" == "fetch" ]]; then
     PACKAGES=("${FETCH_PACKAGES[@]}")
 elif [[ "${MODE}" == "tool" ]]; then
     PACKAGES=("${TOOL_PACKAGES[@]}")
+elif [[ "${MODE}" == "busybox" ]]; then
+    PACKAGES=("${BUSYBOX_PACKAGES[@]}")
 else
     PACKAGES=("${ALL_PACKAGES[@]}")
+fi
+
+is_musl_cc() {
+    local cc_cmd="$1"
+    command -v "${cc_cmd}" >/dev/null 2>&1 || return 1
+    local defs
+    defs="$(printf '#include <features.h>\n' | "${cc_cmd}" -dM -E - 2>/dev/null)" || return 1
+    if grep -qE '^#define __GLIBC__\b' <<< "${defs}"; then
+        return 1
+    fi
+    return 0
+}
+
+if [[ ( "${MODE}" == "tool" || "${MODE}" == "busybox" ) && -n "${CC:-}" ]]; then
+    if command -v "${CC}" >/dev/null 2>&1 && ! is_musl_cc "${CC}"; then
+        echo "[check-host] ERROR: CC='${CC}' targets glibc; musl-gcc is required (D-004)." >&2
+        exit 1
+    fi
 fi
 
 MISSING=()
 for pkg in "${PACKAGES[@]}"; do
     status="$(dpkg-query -W -f='${Status}\n' "${pkg}" 2>/dev/null || true)"
     if [[ "${status}" != "install ok installed" ]]; then
-        if [[ "${MODE}" == "tool" && "${pkg}" == "musl-tools" ]]; then
-            if command -v "${CC:-musl-gcc}" >/dev/null 2>&1; then
-                echo "[check-host] Note: '${pkg}' not installed via dpkg, using compiler '${CC:-musl-gcc}'."
+        if [[ ( "${MODE}" == "tool" || "${MODE}" == "busybox" ) && "${pkg}" == "musl-tools" ]]; then
+            if is_musl_cc "${CC:-musl-gcc}"; then
+                echo "[check-host] Note: '${pkg}' not installed via dpkg, using musl compiler '${CC:-musl-gcc}'."
                 continue
             fi
-            if compgen -G "/var/cache/apt/archives/musl-tools_*.deb" >/dev/null && \
+            if [[ -z "${CC:-}" || "${CC}" == "musl-gcc" ]] && \
+               compgen -G "/var/cache/apt/archives/musl-tools_*.deb" >/dev/null && \
                compgen -G "/var/cache/apt/archives/musl-dev_*.deb" >/dev/null && \
                compgen -G "/var/cache/apt/archives/musl_*.deb" >/dev/null; then
                 echo "[check-host] Note: '${pkg}' not installed via dpkg, using cached .deb archives in /var/cache/apt/archives/."

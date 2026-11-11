@@ -44,14 +44,10 @@ test-tool:
 	@mkdir -p "$(BUILD_DIR)/tool-test"
 	@$(MAKE) -C "$(ROOT_DIR)/src/shardkey" test BUILD_DIR="$(BUILD_DIR)/tool-test"
 
-busybox: check-host
+busybox:
+	@"$(SCRIPTS_DIR)/check-host.sh" --busybox
 	@mkdir -p "$(BUILD_DIR)/busybox"
-	@if [[ -x "$(SCRIPTS_DIR)/build-busybox.sh" ]]; then \
-		"$(SCRIPTS_DIR)/build-busybox.sh"; \
-	else \
-		echo "[make] ERROR: scripts/build-busybox.sh not yet implemented (Phase 3)." >&2; \
-		exit 1; \
-	fi
+	@"$(SCRIPTS_DIR)/build-busybox.sh"
 
 rootfs: tool busybox
 	@mkdir -p "$(BUILD_DIR)/rootfs" "$(OUT_DIR)"
