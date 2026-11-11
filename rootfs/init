@@ -1,0 +1,158 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# ShardKey PID 1 /init (BusyBox ash).
+# Mounts core pseudo-filesystems, silences kernel console noise, waits until
+# no USB disks remain attached, runs /bin/shardkey, and always clears caches
+# and powers off the machine without ever dropping to a shell.
+
+PATH=/bin:/sbin
+export PATH
+HOME=/
+export HOME
+umask 077
+
+# Best-effort disable core dumps
+ulimit -c 0 >/dev/null 2>&1 || true
+
+_SHUTDOWN_STARTED=0
+
+is_usb_sysfs_block() {
+    local name="$1"
+    local sys_blk="/sys/block/${name}"
+    local real_blk=""
+
+    [ -e "${sys_blk}" ] || return 1
+    real_blk="$(cd -P "${sys_blk}" 2>/dev/null && pwd)" || return 1
+    case "${real_blk}" in
+        */usb/*|*/usb[0-9]*/*) return 0 ;;
+    esac
+    return 1
+}
+
+list_usb_disks() {
+    local blk=""
+    local name=""
+    local found=""
+
+    for blk in /sys/block/*; do
+        [ -e "${blk}" ] || continue
+        name="${blk##*/}"
+        case "${name}" in
+            loop*|ram*|zram*) continue ;;
+        esac
+        if is_usb_sysfs_block "${name}"; then
+            if [ -n "${found}" ]; then
+                found="${found} /dev/${name}"
+            else
+                found="/dev/${name}"
+            fi
+        fi
+    done
+    printf '%s' "${found}"
+}
+
+cleanup_and_poweroff() {
+    local code="${1:-1}"
+    trap '' INT TERM QUIT HUP
+
+    if [ "${_SHUTDOWN_STARTED}" -ne 0 ]; then
+        return 0
+    fi
+    _SHUTDOWN_STARTED=1
+
+    # Ensure any share mount left open on interruption is unmounted cleanly
+    if [ -r /proc/mounts ]; then
+        while read -r _dev mp _rest; do
+            if [ "${mp}" = "/mnt" ]; then
+                umount /mnt >/dev/null 2>&1 || true
+                break
+            fi
+        done < /proc/mounts
+    fi
+
+    sync
+    if [ -w /proc/sys/vm/drop_caches ]; then
+        echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
+    fi
+    sync
+
+    echo ""
+    if [ "${code}" -eq 0 ]; then
+        echo "ShardKey ceremony completed (exit 0). Caches cleared; powering off."
+    else
+        echo "ShardKey exited with status ${code}. Caches cleared; powering off."
+    fi
+
+    sleep 1
+    poweroff -f >/dev/null 2>&1 || true
+
+    # PID 1 must never exit cleanly or return to kernel
+    while true; do
+        sleep 60
+    done
+}
+
+on_signal() {
+    cleanup_and_poweroff "$1"
+    exit "$1"
+}
+
+trap 'on_signal 130' INT
+trap 'on_signal 143' TERM
+trap 'on_signal 131' QUIT
+trap 'on_signal 129' HUP
+
+# Mount /proc, /sys, and /dev, tolerating filesystems already mounted by kernel
+if [ ! -e /proc/mounts ]; then
+    mount -t proc proc /proc >/dev/null 2>&1 || true
+fi
+if [ ! -e /sys/class ]; then
+    mount -t sysfs sysfs /sys >/dev/null 2>&1 || true
+fi
+
+dev_mounted=0
+if [ -r /proc/mounts ]; then
+    while read -r _dev mp fstype _rest; do
+        if [ "${mp}" = "/dev" ] && [ "${fstype}" = "devtmpfs" ]; then
+            dev_mounted=1
+            break
+        fi
+    done < /proc/mounts
+fi
+if [ "${dev_mounted}" -eq 0 ]; then
+    mount -t devtmpfs devtmpfs /dev >/dev/null 2>&1 || true
+fi
+
+if [ -c /dev/console ]; then
+    exec </dev/console >/dev/console 2>&1
+fi
+
+# Silence kernel console printk output before displaying interactive UI
+if [ -w /proc/sys/kernel/printk ]; then
+    echo 0 > /proc/sys/kernel/printk 2>/dev/null || true
+fi
+
+stty sane >/dev/null 2>&1 || true
+clear >/dev/null 2>&1 || true
+
+# Require all USB disks (including the boot stick) to be removed before ceremony start
+usb_disks="$(list_usb_disks)"
+if [ -n "${usb_disks}" ]; then
+    echo "Remove all USB drives (including the boot stick) to continue..."
+    echo "  Detected: ${usb_disks}"
+    while [ -n "${usb_disks}" ]; do
+        sleep 1
+        usb_disks="$(list_usb_disks)"
+    done
+    echo "All USB drives removed."
+fi
+
+if [ ! -x /bin/shardkey ]; then
+    echo "ERROR: /bin/shardkey not found or not executable."
+    cleanup_and_poweroff 127
+fi
+
+/bin/shardkey
+status=$?
+cleanup_and_poweroff "${status}"
