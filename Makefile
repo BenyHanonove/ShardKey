@@ -35,23 +35,14 @@ fetch:
 	@"$(SCRIPTS_DIR)/check-host.sh" --fetch
 	@"$(SCRIPTS_DIR)/fetch.sh"
 
-tool: check-host
+tool:
+	@"$(SCRIPTS_DIR)/check-host.sh" --tool
 	@mkdir -p "$(BUILD_DIR)/tool"
-	@if [[ -f "$(ROOT_DIR)/src/shardkey/Makefile" ]]; then \
-		$(MAKE) -C "$(ROOT_DIR)/src/shardkey" BUILD_DIR="$(BUILD_DIR)/tool"; \
-	else \
-		echo "[make] ERROR: src/shardkey/Makefile not yet implemented (Phase 2)." >&2; \
-		exit 1; \
-	fi
+	@$(MAKE) -C "$(ROOT_DIR)/src/shardkey" BUILD_DIR="$(BUILD_DIR)/tool"
 
 test-tool:
 	@mkdir -p "$(BUILD_DIR)/tool-test"
-	@if [[ -f "$(ROOT_DIR)/src/shardkey/Makefile" ]]; then \
-		$(MAKE) -C "$(ROOT_DIR)/src/shardkey" test BUILD_DIR="$(BUILD_DIR)/tool-test"; \
-	else \
-		echo "[make] ERROR: src/shardkey/Makefile not yet implemented (Phase 2)." >&2; \
-		exit 1; \
-	fi
+	@$(MAKE) -C "$(ROOT_DIR)/src/shardkey" test BUILD_DIR="$(BUILD_DIR)/tool-test"
 
 busybox: check-host
 	@mkdir -p "$(BUILD_DIR)/busybox"

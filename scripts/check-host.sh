@@ -5,6 +5,7 @@
 # Usage:
 #   scripts/check-host.sh           # check all packages needed for a full build
 #   scripts/check-host.sh --fetch   # check only packages needed for 'make fetch'
+#   scripts/check-host.sh --tool    # check only packages needed for 'make tool'
 
 set -euo pipefail
 
@@ -14,12 +15,15 @@ if [[ $# -gt 0 ]]; then
         --fetch)
             MODE="fetch"
             ;;
+        --tool)
+            MODE="tool"
+            ;;
         --all)
             MODE="all"
             ;;
         *)
             echo "[check-host] ERROR: unknown argument: $1" >&2
-            echo "Usage: $0 [--all | --fetch]" >&2
+            echo "Usage: $0 [--all | --fetch | --tool]" >&2
             exit 2
             ;;
     esac
@@ -55,6 +59,11 @@ FETCH_PACKAGES=(
     bzip2
 )
 
+TOOL_PACKAGES=(
+    build-essential
+    musl-tools
+)
+
 ALL_PACKAGES=(
     build-essential
     bc
@@ -80,6 +89,8 @@ ALL_PACKAGES=(
 
 if [[ "${MODE}" == "fetch" ]]; then
     PACKAGES=("${FETCH_PACKAGES[@]}")
+elif [[ "${MODE}" == "tool" ]]; then
+    PACKAGES=("${TOOL_PACKAGES[@]}")
 else
     PACKAGES=("${ALL_PACKAGES[@]}")
 fi
@@ -88,6 +99,18 @@ MISSING=()
 for pkg in "${PACKAGES[@]}"; do
     status="$(dpkg-query -W -f='${Status}\n' "${pkg}" 2>/dev/null || true)"
     if [[ "${status}" != "install ok installed" ]]; then
+        if [[ "${MODE}" == "tool" && "${pkg}" == "musl-tools" ]]; then
+            if command -v "${CC:-musl-gcc}" >/dev/null 2>&1; then
+                echo "[check-host] Note: '${pkg}' not installed via dpkg, using compiler '${CC:-musl-gcc}'."
+                continue
+            fi
+            if compgen -G "/var/cache/apt/archives/musl-tools_*.deb" >/dev/null && \
+               compgen -G "/var/cache/apt/archives/musl-dev_*.deb" >/dev/null && \
+               compgen -G "/var/cache/apt/archives/musl_*.deb" >/dev/null; then
+                echo "[check-host] Note: '${pkg}' not installed via dpkg, using cached .deb archives in /var/cache/apt/archives/."
+                continue
+            fi
+        fi
         MISSING+=("${pkg}")
     fi
 done
@@ -103,4 +126,4 @@ if [[ ${#MISSING[@]} -gt 0 ]]; then
     exit 1
 fi
 
-echo "[check-host] OK (${MODE}): all ${#PACKAGES[@]} required packages are installed."
+echo "[check-host] OK (${MODE}): all ${#PACKAGES[@]} required packages are satisfied."

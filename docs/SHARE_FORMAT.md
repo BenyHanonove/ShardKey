@@ -81,5 +81,104 @@ A recovery tool reading v1 shares must:
 
 ## 5. Test vectors
 
-To be added in Phase 2: a fixed secret, fixed coefficients, and the expected share
-files, so the recovery project can test against them.
+### 5.1 Share split and file encoding (3-of-5)
+
+Parameters:
+- `threshold` (`k`): `3`
+- `shares` (`n`): `5`
+- `secret` (32 bytes, `s_j = j` for `j = 0..31`):
+  `000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f`
+- Polynomial coefficients for byte `j` (`j = 0..31`):
+  - Degree-1 coefficient `a_{j,1} = 0x20 + j`:
+    `202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f`
+  - Degree-2 coefficient `a_{j,2} = 0x40 + j`:
+    `404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f`
+- `set-id` (8 bytes): `7f3a9c0e5b21d846`
+- `fingerprint` (`SHA-256("SHARDKEY-FP-V1" ‖ secret)[0..7]`): `2ff70fe219b3a5a5`
+
+Expected share files:
+
+#### `shardkey-share-1-of-5.txt`
+```
+SHARDKEY-SHARE-V1
+scheme: shamir-gf256
+threshold: 3
+shares: 5
+index: 1
+set-id: 7f3a9c0e5b21d846
+fingerprint: 2ff70fe219b3a5a5
+data: 606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f
+check: 2a2c1d24961824fd
+```
+
+#### `shardkey-share-2-of-5.txt`
+```
+SHARDKEY-SHARE-V1
+scheme: shamir-gf256
+threshold: 3
+shares: 5
+index: 2
+set-id: 7f3a9c0e5b21d846
+fingerprint: 2ff70fe219b3a5a5
+data: 5b5c55524740494e63646d6a7f7871762b2c25223730393e13141d1a0f080106
+check: 329ee93a25f4e0b1
+```
+
+#### `shardkey-share-3-of-5.txt`
+```
+SHARDKEY-SHARE-V1
+scheme: shamir-gf256
+threshold: 3
+shares: 5
+index: 3
+set-id: 7f3a9c0e5b21d846
+fingerprint: 2ff70fe219b3a5a5
+data: 3b3c35322720292e03040d0a1f1811164b4c45425750595e73747d7a6f686166
+check: 1a9f79aa28038b9b
+```
+
+#### `shardkey-share-4-of-5.txt`
+```
+SHARDKEY-SHARE-V1
+scheme: shamir-gf256
+threshold: 3
+shares: 5
+index: 4
+set-id: 7f3a9c0e5b21d846
+fingerprint: 2ff70fe219b3a5a5
+data: ecf9c6d3b8ad928744516e7b10053a2fa7b28d98f3e6d9cc0f1a25305b4e7164
+check: c5e32e514b485b28
+```
+
+#### `shardkey-share-5-of-5.txt`
+```
+SHARDKEY-SHARE-V1
+scheme: shamir-gf256
+threshold: 3
+shares: 5
+index: 5
+set-id: 7f3a9c0e5b21d846
+fingerprint: 2ff70fe219b3a5a5
+data: 8c99a6b3d8cdf2e724310e1b70655a4fc7d2edf89386b9ac6f7a45503b2e1104
+check: ce679027135570be
+```
+
+Any 3 of the 5 share files above reconstruct `secret = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f` with matching `fingerprint = 2ff70fe219b3a5a5`.
+
+### 5.2 Seed mixing and HKDF-Expand derivation
+
+- `kernel_random` (64 bytes, `kernel_random[i] = i` for `i = 0..63`):
+  `000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f`
+- `dice` (100 ASCII bytes, `dice[i] = '1' + (i mod 6)` for `i = 0..99`):
+  `"1234561234561234561234561234561234561234561234561234561234561234561234561234561234561234561234561234"`
+- `len(dice)` (8-byte big-endian unsigned integer): `0000000000000064`
+- Mixed `seed = SHA-256("SHARDKEY-SEED-V1" ‖ kernel_random ‖ len(dice) ‖ dice)`:
+  `d0cfaccf86b7b82c45ac62781a16dedc8269fdda525d8dc1a8701652b4b9c287`
+- Derived material via RFC 5869 `HKDF-Expand(PRK = seed, info)`:
+  - `secret` (`info = "SHARDKEY-SECRET-V1"`, 32 bytes):
+    `814f728bcab53cac2854fea3a90a1e0cf5faca78ebe84c8fa5e4b4e71092d958`
+  - `set-id` (`info = "SHARDKEY-SETID-V1"`, 8 bytes):
+    `c29372774cf95c59`
+  - `coeffs` for `k = 3` (`info = "SHARDKEY-COEFFS-V1"`, 64 bytes, `coeffs[2*j] = a_{j,1}`, `coeffs[2*j+1] = a_{j,2}`):
+    `e822f54fc5d05d62e84b58714eceff2742e09c552496523130b3b9d0ed5bc216a604089fe157484fa5647a958268099271a582a3886910cb71969815738925cb`
+
