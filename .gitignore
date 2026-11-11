@@ -1,0 +1,105 @@
+# ShardKey .gitignore
+#
+# NOTE: design reasoning lives in docs/ (DECISIONS.md, PLAN.md, ...) and is ALWAYS
+# tracked. Do not add patterns here that could match files in docs/.
+
+# ─────────────────────────────────────────────────────────────
+# AI / "vibe coding" assistant files (local tooling, not project source)
+# ─────────────────────────────────────────────────────────────
+
+# Claude Code
+.claude/
+CLAUDE.md
+CLAUDE.local.md
+.mcp.json
+
+# BMad Method / WDS
+_bmad/
+_bmad-output/
+.bmad/
+.bmad-core/
+progress/
+
+# Cursor
+.cursor/
+.cursorrules
+.cursorignore
+.cursorindexingignore
+
+# GitHub Copilot / generic agent instruction files
+.github/copilot-instructions.md
+.github/instructions/
+.github/prompts/
+.github/chatmodes/
+AGENTS.md
+
+# Windsurf / Codeium
+.windsurf/
+.windsurfrules
+.codeium/
+
+# Cline / Roo Code / Kilo Code
+.cline/
+.clinerules
+.clinerules/
+.roo/
+.roomodes
+.kilocode/
+
+# Aider
+.aider*
+
+# Continue
+.continue/
+
+# Gemini CLI / OpenAI Codex CLI
+.gemini/
+GEMINI.md
+.codex/
+
+# Zed AI, Amazon Q, JetBrains AI, misc
+.zed/
+.amazonq/
+.aiassistant/
+.junie/
+.specstory/
+.ai/
+.prompts/
+*.prompt.md
+
+# ─────────────────────────────────────────────────────────────
+# Keep design-decision documents tracked (safety net)
+# ─────────────────────────────────────────────────────────────
+!docs/
+!docs/**
+
+# ─────────────────────────────────────────────────────────────
+# Build outputs and downloaded upstream sources
+# ─────────────────────────────────────────────────────────────
+/build/
+/out/
+*.o
+*.a
+*.d
+*.cpio
+*.cpio.gz
+*.img
+*.iso
+
+# ─────────────────────────────────────────────────────────────
+# Secrets — the signing PRIVATE key must never be committed
+# (only the public certificate in keys/ is tracked, see docs/SIGNING.md)
+# ─────────────────────────────────────────────────────────────
+*.key
+*.pem
+*.p12
+*.pfx
+
+# ─────────────────────────────────────────────────────────────
+# Editors / OS
+# ─────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
