@@ -96,6 +96,10 @@ ShardKey/
 ## Quick start (once implemented)
 
 ```bash
+make check-host    # verify all required host packages are installed
+```
+
+```bash
 make fetch         # download + verify kernel, BusyBox, (musl via distro package)
 ```
 
@@ -123,9 +127,16 @@ Then follow the operator runbook in [docs/PLAN.md § Ceremony runbook](docs/PLAN
 
 ## Requirements
 
-- **Build machine:** Debian 13 (stable) x86_64, with `build-essential bc bison flex
-  libelf-dev musl-tools cpio xz-utils syslinux syslinux-common mtools dosfstools
-  gnupg sbsigntool openssl qemu-system-x86 ovmf`.
+- **Build machine:** Debian 13 (stable) x86_64 (or compatible Debian/Ubuntu x86_64 host).
+  Install all required build and test dependencies with:
+  ```bash
+  sudo apt-get update && sudo apt-get install -y \
+    build-essential bc bison flex libelf-dev musl-tools \
+    cpio xz-utils bzip2 syslinux syslinux-common mtools dosfstools \
+    gnupg sbsigntool openssl qemu-system-x86 ovmf curl ca-certificates
+  ```
+  You can verify the host setup at any time by running `make check-host` (which runs
+  `scripts/check-host.sh`).
 - **Signing key:** kept offline (separate USB drive or hardware token), used only for
   `make sign`. See [docs/SIGNING.md](docs/SIGNING.md).
 - **Ceremony machine:** any x86_64 PC, ≥ 512 MB RAM, a USB port and a keyboard.
