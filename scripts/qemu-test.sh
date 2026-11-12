@@ -21,6 +21,9 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=../config/versions.env
 source "${ROOT_DIR}/config/versions.env"
 
+BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build}"
+OUT_DIR="${OUT_DIR:-${ROOT_DIR}/out}"
+
 DEBUG_KERNEL="${OUT_DIR}/debug/bzImage"
 INITRAMFS_IMG="${OUT_DIR}/initramfs.cpio.gz"
 COMBINE_CHECK="${BUILD_DIR}/tool-test/combine_check"
@@ -104,7 +107,7 @@ rm -f "${SYSLINUX_CFG}"
 
 log "Prepared hybrid BIOS/UEFI test boot stick image cleanly."
 
-exec python3 - "${WORK_DIR}" "${BOOT_IMG}" "${OVMF_CODE}" "${OVMF_VARS}" "${COMBINE_CHECK}" <<'PYEOF'
+python3 - "${WORK_DIR}" "${BOOT_IMG}" "${OVMF_CODE}" "${OVMF_VARS}" "${COMBINE_CHECK}" "${DEBUG_KERNEL}" <<'PYEOF'
 import json
 import os
 import re
@@ -116,7 +119,7 @@ import subprocess
 import sys
 import time
 
-WORK_DIR, BOOT_IMG, OVMF_CODE, OVMF_VARS, COMBINE_CHECK = sys.argv[1:6]
+WORK_DIR, BOOT_IMG, OVMF_CODE, OVMF_VARS, COMBINE_CHECK, DEBUG_KERNEL = sys.argv[1:7]
 DISK_SIZE = 72 * 1024 * 1024  # 72 MiB sparse raw image (clean FAT32 cluster count)
 
 
@@ -610,6 +613,154 @@ def test_ctrl_c_interrupt(mode):
     print(f"[qemu-test] PASS: ctrl_c_interrupt ({mode})")
 
 
+def test_uefi_secboot():
+    sec_code = "/usr/share/OVMF/OVMF_CODE_4M.secboot.fd"
+    sec_vars = "/usr/share/OVMF/OVMF_VARS_4M.snakeoil.fd"
+    sec_key = "/usr/share/ovmf/PkKek-1-snakeoil.key"
+    sec_cert = "/usr/share/ovmf/PkKek-1-snakeoil.pem"
+    if not all(os.path.exists(p) for p in (sec_code, sec_vars, sec_key, sec_cert)):
+        print("[qemu-test] SKIP: uefi_secboot (OVMF snakeoil Secure Boot files absent)")
+        return
+
+    print("[qemu-test] Running uefi_secboot (Secure Boot refusal of unsigned + boot of signed)...")
+    sec_dir = os.path.join(WORK_DIR, "secboot")
+    os.makedirs(sec_dir, exist_ok=True)
+
+    plain_key = os.path.join(sec_dir, "snakeoil.key")
+    signed_kernel = os.path.join(sec_dir, "bzImage.signed")
+    signed_img = os.path.join(sec_dir, "secboot-signed.img")
+    part_img = os.path.join(sec_dir, "part.img")
+
+    subprocess.run(
+        ["openssl", "rsa", "-in", sec_key, "-passin", "pass:snakeoil", "-out", plain_key],
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    subprocess.run(
+        ["sbsign", "--key", plain_key, "--cert", sec_cert, "--output", signed_kernel, DEBUG_KERNEL],
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    subprocess.run(["sbverify", "--cert", sec_cert, signed_kernel], check=True, stdout=subprocess.DEVNULL)
+
+    with open(signed_img, "wb") as f:
+        f.truncate(DISK_SIZE)
+    subprocess.run(
+        ["sfdisk", "-q", signed_img],
+        input="label: dos\nunit: sectors\n\n2048,,c,*\n",
+        text=True,
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
+    part_blocks = (72 * 1024 * 2 - 2048) // 2
+    subprocess.run(
+        ["mkfs.vfat", "-F", "32", "-n", "SHARDKEY", "-C", part_img, str(part_blocks)],
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
+    subprocess.run(
+        ["dd", f"if={part_img}", f"of={signed_img}", "bs=512", "seek=2048", "conv=notrunc", "status=none"],
+        check=True,
+    )
+    m_img = f"{signed_img}@@1048576"
+    subprocess.run(["mmd", "-i", m_img, "::/EFI", "::/EFI/BOOT"], check=True)
+    subprocess.run(["mcopy", "-i", m_img, signed_kernel, "::/EFI/BOOT/BOOTX64.EFI"], check=True)
+
+    def launch_secboot(name, img_path):
+        vars_copy = os.path.join(sec_dir, f"{name}_vars.fd")
+        shutil.copyfile(sec_vars, vars_copy)
+        ser_sock = os.path.join(sec_dir, f"{name}_ser.sock")
+        cmd = [
+            "qemu-system-x86_64",
+            "-machine", "q35,smm=on",
+            "-m", "256M",
+            "-nographic",
+            "-nic", "none",
+            "-global", "driver=cfi.pflash01,property=secure,value=on",
+            "-drive", f"if=pflash,format=raw,readonly=on,file={sec_code}",
+            "-drive", f"if=pflash,format=raw,file={vars_copy}",
+            "-device", "qemu-xhci,id=xhci",
+            "-drive", f"if=none,id=bd,format=raw,readonly=on,file={img_path}",
+            "-device", "usb-storage,bus=xhci.0,id=u,drive=bd,bootindex=1",
+            "-chardev", f"socket,id=ser,path={ser_sock},server=on,wait=off",
+            "-serial", "chardev:ser",
+        ]
+        if os.access("/dev/kvm", os.R_OK | os.W_OK):
+            cmd.extend(["-accel", "kvm"])
+        cmd.extend(["-accel", "tcg"])
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        sk = None
+        for _ in range(100):
+            if proc.poll() is not None:
+                raise RuntimeError(f"QEMU exited early rc={proc.returncode}: {proc.stderr.read().decode()}")
+            if os.path.exists(ser_sock):
+                try:
+                    sk = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                    sk.connect(ser_sock)
+                    break
+                except OSError:
+                    sk.close()
+                    sk = None
+            time.sleep(0.05)
+        if sk is None:
+            proc.kill()
+            proc.wait()
+            raise TimeoutError(f"Timed out connecting to {ser_sock}")
+        return proc, sk
+
+    # 1. Unsigned image must be REFUSED under UEFI Secure Boot
+    p_u, sk_u = launch_secboot("unsigned", BOOT_IMG)
+    try:
+        out_u = ""
+        end = time.time() + 15.0
+        while time.time() < end:
+            r, _, _ = select.select([sk_u], [], [], 0.2)
+            if r:
+                out_u += sk_u.recv(4096).decode("utf-8", "replace")
+                if "Access Denied" in out_u or "Security Violation" in out_u:
+                    break
+        if "ShardKey" in out_u:
+            raise AssertionError(f"Unsigned kernel booted under Secure Boot!\n{out_u}")
+        if "Access Denied" not in out_u and "Security Violation" not in out_u:
+            raise AssertionError(f"Expected Secure Boot refusal for unsigned image, got:\n{out_u}")
+    finally:
+        sk_u.close()
+        p_u.kill()
+        p_u.wait()
+
+    # 2. Signed image must BOOT under UEFI Secure Boot
+    p_s, sk_s = launch_secboot("signed", signed_img)
+    try:
+        out_s = ""
+        end = time.time() + 20.0
+        while time.time() < end:
+            r, _, _ = select.select([sk_s], [], [], 0.2)
+            if r:
+                out_s += sk_s.recv(4096).decode("utf-8", "replace")
+                if "Press Enter." in out_s:
+                    break
+        if "Press Enter." not in out_s:
+            raise AssertionError(f"Signed kernel did not boot under Secure Boot:\n{out_s}")
+        sk_s.sendall(b"\x03")
+        end_pow = time.time() + 15.0
+        while p_s.poll() is None and time.time() < end_pow:
+            r, _, _ = select.select([sk_s], [], [], 0.2)
+            if r:
+                out_s += sk_s.recv(4096).decode("utf-8", "replace")
+        rc = p_s.wait(timeout=5)
+        if rc != 0 or "Caches cleared; powering off." not in out_s:
+            raise AssertionError(f"Signed Secure Boot guest did not power off cleanly rc={rc}:\n{out_s}")
+    finally:
+        sk_s.close()
+        if p_s.poll() is None:
+            p_s.kill()
+            p_s.wait()
+
+    print("[qemu-test] PASS: uefi_secboot (unsigned refused, signed booted)")
+
+
 def main():
     start = time.time()
     test_happy_path("bios", 3, 2)
@@ -617,8 +768,9 @@ def main():
     for mode in ("bios", "uefi"):
         test_failure_modes(mode)
         test_ctrl_c_interrupt(mode)
+    test_uefi_secboot()
     elapsed = time.time() - start
-    print(f"[qemu-test] ALL BIOS & UEFI E2E TESTS PASSED in {elapsed:.1f}s.")
+    print(f"[qemu-test] ALL BIOS, UEFI & SECURE BOOT E2E TESTS PASSED in {elapsed:.1f}s.")
 
 
 main()
