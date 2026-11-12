@@ -34,13 +34,18 @@ LIB_SRCS := \
 	drive.c \
 	ui.c
 
-TOOL_OBJS := $(patsubst %.c,$(BUILD_DIR)/obj/%.o,$(LIB_SRCS) main.c)
-TEST_OBJS := $(patsubst %.c,$(BUILD_DIR)/test-obj/%.o,$(LIB_SRCS) main.c) \
-             $(BUILD_DIR)/test-obj/test_main.o
+TOOL_OBJS          := $(patsubst %.c,$(BUILD_DIR)/obj/%.o,$(LIB_SRCS) main.c)
+LIB_TEST_OBJS      := $(patsubst %.c,$(BUILD_DIR)/test-obj/%.o,$(LIB_SRCS))
+TEST_OBJS          := $(LIB_TEST_OBJS) \
+                      $(BUILD_DIR)/test-obj/main.o \
+                      $(BUILD_DIR)/test-obj/test_main.o
+COMBINE_CHECK_OBJS := $(LIB_TEST_OBJS) \
+                      $(BUILD_DIR)/test-obj/combine_check.o
 
-TARGET_BIN   := $(BUILD_DIR)/shardkey
-TEST_BIN     := $(BUILD_DIR)/test_shardkey
-MUSL_SYSROOT := $(BUILD_DIR)/musl-sysroot
+TARGET_BIN         := $(BUILD_DIR)/shardkey
+TEST_BIN           := $(BUILD_DIR)/test_shardkey
+COMBINE_CHECK_BIN  := $(BUILD_DIR)/combine_check
+MUSL_SYSROOT       := $(BUILD_DIR)/musl-sysroot
 
 .PHONY: all test verify-static ensure-cc clean
 
@@ -116,12 +121,20 @@ $(BUILD_DIR)/test-obj/test_main.o: $(SRC_DIR)/tests/test_main.c
 	@mkdir -p "$(dir $@)"
 	$(HOSTCC) $(TEST_CFLAGS) -DSHARDKEY_TEST_BUILD=1 -c "$<" -o "$@"
 
+$(BUILD_DIR)/test-obj/combine_check.o: $(SRC_DIR)/tests/combine_check.c
+	@mkdir -p "$(dir $@)"
+	$(HOSTCC) $(TEST_CFLAGS) -DSHARDKEY_TEST_BUILD=1 -c "$<" -o "$@"
+
 $(TEST_BIN): $(TEST_OBJS)
 	@mkdir -p "$(dir $@)"
 	$(HOSTCC) $(TEST_CFLAGS) $(TEST_OBJS) $(TEST_LDFLAGS) -o "$@"
 
-test: $(TEST_BIN)
+$(COMBINE_CHECK_BIN): $(COMBINE_CHECK_OBJS)
+	@mkdir -p "$(dir $@)"
+	$(HOSTCC) $(TEST_CFLAGS) $(COMBINE_CHECK_OBJS) $(TEST_LDFLAGS) -o "$@"
+
+test: $(TEST_BIN) $(COMBINE_CHECK_BIN)
 	"$(TEST_BIN)"
 
 clean:
-	@rm -rf "$(BUILD_DIR)/obj" "$(BUILD_DIR)/test-obj" "$(MUSL_SYSROOT)" "$(TARGET_BIN)" "$(TEST_BIN)"
+	@rm -rf "$(BUILD_DIR)/obj" "$(BUILD_DIR)/test-obj" "$(MUSL_SYSROOT)" "$(TARGET_BIN)" "$(TEST_BIN)" "$(COMBINE_CHECK_BIN)"

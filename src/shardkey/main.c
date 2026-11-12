@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
 
 #define POLL_INTERVAL_MS 200u
@@ -437,8 +438,72 @@ int shardkey_ceremony_run(const struct shardkey_ceremony_cfg *user_cfg)
 }
 
 #ifndef SHARDKEY_TEST_BUILD
+static void attach_console_ctty(void)
+{
+	if (tcgetpgrp(STDIN_FILENO) >= 0) {
+		return;
+	}
+	FILE *f = fopen("/sys/class/tty/console/active", "re");
+	if (f == NULL) {
+		return;
+	}
+	char buf[256];
+	if (fgets(buf, sizeof(buf), f) == NULL) {
+		fclose(f);
+		return;
+	}
+	fclose(f);
+
+	/* /sys/class/tty/console/active lists space-separated names; last is primary */
+	char *tok = NULL;
+	char *p = buf;
+	while (*p != '\0') {
+		while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') {
+			p++;
+		}
+		if (*p == '\0') {
+			break;
+		}
+		tok = p;
+		while (*p != '\0' && *p != ' ' && *p != '\t' && *p != '\n' && *p != '\r') {
+			p++;
+		}
+		if (*p != '\0') {
+			*p++ = '\0';
+		}
+	}
+	if (tok == NULL || strcmp(tok, "console") == 0) {
+		return;
+	}
+	if (strcmp(tok, "tty0") == 0) {
+		tok = "tty1";
+	}
+
+	char dev_path[64];
+	if (snprintf(dev_path, sizeof(dev_path), "/dev/%s", tok) >= (int)sizeof(dev_path)) {
+		return;
+	}
+
+	int fd = open(dev_path, O_RDWR | O_NOCTTY | O_CLOEXEC);
+	if (fd < 0) {
+		return;
+	}
+	if (getsid(0) != getpid()) {
+		(void)setsid();
+	}
+	if (ioctl(fd, TIOCSCTTY, 0) == 0) {
+		(void)dup2(fd, STDIN_FILENO);
+		(void)dup2(fd, STDOUT_FILENO);
+		(void)dup2(fd, STDERR_FILENO);
+	}
+	if (fd > STDERR_FILENO) {
+		close(fd);
+	}
+}
+
 int main(void)
 {
+	attach_console_ctty();
 	return shardkey_ceremony_run(NULL);
 }
 #endif /* !SHARDKEY_TEST_BUILD */

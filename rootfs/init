@@ -133,6 +133,11 @@ if [ -w /proc/sys/kernel/printk ]; then
     echo 0 > /proc/sys/kernel/printk 2>/dev/null || true
 fi
 
+# Route Ctrl-Alt-Del to PID 1 SIGINT so /init clears caches before powering off
+if [ -w /proc/sys/kernel/ctrl-alt-del ]; then
+    echo 0 > /proc/sys/kernel/ctrl-alt-del 2>/dev/null || true
+fi
+
 stty sane >/dev/null 2>&1 || true
 clear >/dev/null 2>&1 || true
 
