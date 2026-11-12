@@ -7,6 +7,7 @@
 #   scripts/check-host.sh --fetch     # check only packages needed for 'make fetch'
 #   scripts/check-host.sh --tool      # check only packages needed for 'make tool'
 #   scripts/check-host.sh --busybox   # check only packages needed for 'make busybox'
+#   scripts/check-host.sh --kernel    # check only packages needed for 'make kernel'
 
 set -euo pipefail
 
@@ -22,12 +23,15 @@ if [[ $# -gt 0 ]]; then
         --busybox)
             MODE="busybox"
             ;;
+        --kernel)
+            MODE="kernel"
+            ;;
         --all)
             MODE="all"
             ;;
         *)
             echo "[check-host] ERROR: unknown argument: $1" >&2
-            echo "Usage: $0 [--all | --fetch | --tool | --busybox]" >&2
+            echo "Usage: $0 [--all | --fetch | --tool | --busybox | --kernel]" >&2
             exit 2
             ;;
     esac
@@ -75,6 +79,16 @@ BUSYBOX_PACKAGES=(
     xz-utils
 )
 
+KERNEL_PACKAGES=(
+    build-essential
+    bc
+    bison
+    flex
+    libelf-dev
+    cpio
+    xz-utils
+)
+
 ALL_PACKAGES=(
     build-essential
     bc
@@ -104,6 +118,8 @@ elif [[ "${MODE}" == "tool" ]]; then
     PACKAGES=("${TOOL_PACKAGES[@]}")
 elif [[ "${MODE}" == "busybox" ]]; then
     PACKAGES=("${BUSYBOX_PACKAGES[@]}")
+elif [[ "${MODE}" == "kernel" ]]; then
+    PACKAGES=("${KERNEL_PACKAGES[@]}")
 else
     PACKAGES=("${ALL_PACKAGES[@]}")
 fi

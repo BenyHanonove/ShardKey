@@ -59,6 +59,7 @@ rootfs: tool busybox
 	fi
 
 kernel: rootfs
+	@"$(SCRIPTS_DIR)/check-host.sh" --kernel
 	@mkdir -p "$(BUILD_DIR)/kernel" "$(OUT_DIR)"
 	@if [[ -x "$(SCRIPTS_DIR)/build-kernel.sh" ]]; then \
 		"$(SCRIPTS_DIR)/build-kernel.sh"; \
@@ -120,7 +121,13 @@ clean:
 		"$(BUILD_DIR)/tool-test" \
 		"$(BUILD_DIR)/busybox" \
 		"$(BUILD_DIR)/rootfs" \
-		"$(BUILD_DIR)/kernel"
+		"$(BUILD_DIR)/gen_init_cpio" \
+		"$(BUILD_DIR)/gen_init_cpio.c" \
+		"$(BUILD_DIR)/gen_init_cpio.sha256" \
+		"$(BUILD_DIR)/initramfs.list" \
+		"$(BUILD_DIR)/kernel" \
+		"$(BUILD_DIR)/kernel-debug" \
+		"$(BUILD_DIR)/kernel-src"
 	@if [[ -d "$(BUILD_DIR)" ]] && [[ -z "$$(ls -A "$(BUILD_DIR)")" ]]; then \
 		rmdir "$(BUILD_DIR)"; \
 	fi

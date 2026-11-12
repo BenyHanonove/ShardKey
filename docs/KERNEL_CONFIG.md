@@ -152,18 +152,18 @@ Most of these are already off after `allnoconfig`; the verify script makes sure 
 | `KEXEC`, `KEXEC_FILE`, `CRASH_DUMP` | Can't load another kernel that would keep current RAM |
 | `MAGIC_SYSRQ` | No keyboard shortcuts into the kernel (we power off cleanly instead) |
 | `ATA`, `SATA_AHCI`, `BLK_DEV_NVME`, `NVME_CORE`, `MMC` | **Internal disks and SD cards are invisible** — nothing can be written to them |
-| `FIREWIRE`, `THUNDERBOLT`, `USB4`, `PCMCIA` | Ports that give devices direct memory access (DMA attacks) |
+| `FIREWIRE`, `THUNDERBOLT` (removed in 6.18; covered by `USB4`), `USB4`, `PCMCIA` | Ports that give devices direct memory access (DMA attacks) |
 | `USB_GADGET`, `USB_NET_DRIVERS`, `USB_SERIAL` | USB networking / device mode |
 | `SOUND`, `DRM` (unless the simpledrm fallback is needed), `MEDIA_SUPPORT`, `WLAN` | Hardware we don't use |
 | `BLK_DEV_LOOP`, `MD`, `BLK_DEV_DM` | Extra block layers we don't use |
 | `EXT4_FS`, `BTRFS_FS`, `XFS_FS`, `NTFS3_FS`, `ISO9660_FS`, `FUSE_FS` | Filesystems we don't use |
-| `EFIVAR_FS`, `EFI_VARS` | No access to firmware variables |
+| `EFIVAR_FS`, `EFI_VARS` (removed in 6.x; covered by `EFIVAR_FS`) | No access to firmware variables |
 | `DEVMEM`, `DEVPORT` | No raw `/dev/mem` / `/dev/port` |
-| `DEBUG_FS`, `KPROBES`, `FTRACE`, `BPF_SYSCALL`, `PERF_EVENTS` | Debug and tracing interfaces that can read memory |
-| `IO_URING`, `USERFAULTFD` | Large attack surface, unused |
+| `DEBUG_FS`, `KPROBES`, `FTRACE`, `BPF_SYSCALL`, `PROFILING` | Debug and tracing interfaces that can read memory (`PERF_EVENTS` is unconditionally selected by `X86` in 6.18; see D-022) |
+| `IO_URING`, `USERFAULTFD` | Large attack surface, unused (`EXPERT=y` is enabled to turn off `COREDUMP` and `IO_URING`; see D-022) |
 | `IA32_EMULATION`, `X86_X32_ABI` | Only 64-bit programs run |
 | `IKCONFIG` | Not needed (the config is in git) |
-| `MICROCODE` | No microcode loading at runtime |
+| `MICROCODE_LATE_LOADING`, `MICROCODE_DBG` | No microcode loading at runtime (`MICROCODE` itself is an unprompted `def_bool y` on x86 in 6.18; see D-022) |
 
 ## 5. Debug variant (QEMU only)
 

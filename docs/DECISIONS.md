@@ -248,3 +248,20 @@ every UEFI firmware supports it. Legacy BIOS machines get only the first check.
 **Why:** Same license as the Linux kernel and BusyBox, which are shipped inside the
 image anyway. Anyone distributing a modified ShardKey must publish its source — fitting
 for a tool whose trust depends on being auditable.
+
+## D-022 — Linux 6.18 x86_64 non-disableable symbols and `EXPERT` gating
+
+**Decision:** Keep `CONFIG_PERF_EVENTS=y` and `CONFIG_MICROCODE=y` allowed in
+`scripts/verify-kconfig.sh` while explicitly forbidding `CONFIG_MICROCODE_LATE_LOADING`,
+`CONFIG_MICROCODE_DBG`, `CONFIG_PROFILING`, and `CONFIG_DEBUG_PERF_USE_VMALLOC`; enable
+`CONFIG_EXPERT=y` solely to allow unsetting `CONFIG_COREDUMP` and `CONFIG_IO_URING`.
+
+**Amends:** the forbidden-symbol list in [KERNEL_CONFIG.md §4](KERNEL_CONFIG.md#4-forbidden-list-must-be-unset).
+
+**Why:** In Linux 6.18.63, `arch/x86/Kconfig` unconditionally runs `select PERF_EVENTS` on
+`X86`, and `CONFIG_MICROCODE` is an unprompted `def_bool y` whenever Intel/AMD CPU support is
+enabled (whereas runtime late microcode loading is a separate symbol,
+`CONFIG_MICROCODE_LATE_LOADING`, which stays `n`). Conversely, `COREDUMP` and `IO_URING`
+default to `y` with prompts hidden behind `if EXPERT`; enabling `CONFIG_EXPERT=y` allows
+`allnoconfig` + `shardkey.config` to turn both off.
+
