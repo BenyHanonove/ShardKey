@@ -4,8 +4,8 @@
 into Shamir's Secret Shares, writes each share to its own USB flash drive, and then
 wipes itself from memory and powers off.**
 
-> Status: **planning / design phase.** No code has been written yet. See
-> [docs/PLAN.md](docs/PLAN.md) for the implementation roadmap.
+> Status: **implemented (Phases 1–7 verified in host & QEMU BIOS/UEFI/Secure Boot tests);**
+> real-hardware dry run and independent review are next. See [docs/PLAN.md](docs/PLAN.md).
 
 ---
 
@@ -149,9 +149,10 @@ Then follow the operator runbook in [docs/PLAN.md § Ceremony runbook](docs/PLAN
 
 ## Security notice
 
-ShardKey is a design-stage project and has **not** been audited. Do not use it to
-protect real assets until the code is written, tested, and independently reviewed.
-Read [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) for the assumptions it makes.
+ShardKey has **not** yet received an independent third-party security audit and
+still requires a real-hardware dry run on your ceremony machine before protecting real
+assets. Read [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) and the runbook in
+[docs/PLAN.md](docs/PLAN.md) (§5) before use.
 
 ## License
 

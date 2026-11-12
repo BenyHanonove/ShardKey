@@ -233,41 +233,88 @@ Tests:
   unsigned image is refused), and a real BIOS machine.
 
 ### Phase 8 — Hardening review and real-hardware dry run
-- Review the code and config against [THREAT_MODEL.md](THREAT_MODEL.md).
-- Dry run on the actual ceremony machine with throwaway drives.
-- Write the final operator runbook (§5) from what was learned.
+- Code & config review against [THREAT_MODEL.md](THREAT_MODEL.md) completed:
+  - Kernel (`config/kernel/shardkey.config`): `NET=n`, `MODULES=n`, `SWAP=n`, `COREDUMP=n`,
+    `IO_URING=n`, `DEVMEM=n`, `DEVPORT=n`, `EFIVAR_FS=n`, `MAGIC_SYSRQ=n`,
+    `CMDLINE_OVERRIDE=y` (`efi=noruntime panic=0`), `INIT_ON_ALLOC_DEFAULT_ON=y`,
+    `INIT_ON_FREE_DEFAULT_ON=y`, `INIT_STACK_ALL_ZERO=y`, `STACKPROTECTOR_STRONG=y`,
+    `HARDENED_USERCOPY=y`, `SLAB_FREELIST_RANDOM=y`, `SLAB_FREELIST_HARDENED=y`,
+    `SECURITY_DMESG_RESTRICT=y`, `BUG_ON_DATA_CORRUPTION=y`, `PANIC_ON_OOPS=y`, no internal
+    disk (`SATA`/`ATA`/`NVMe`/`MMC`) or wireless/network drivers.
+  - Appliance C binary (`src/shardkey/`): static musl with zero dynamic section, zero heap
+    allocations (`malloc`/`calloc`/`realloc` verified absent), `mlockall`, `RLIMIT_CORE=0`,
+    `PR_SET_DUMPABLE=0`, controlling TTY attached (`TIOCSCTTY`) so `Ctrl-C` delivers `SIGINT`,
+    constant-time GF(2⁸) math and compares, exhaustive C(n, k) in-RAM self-test, immediate
+    `secmem_zero()` after every phase, and `explicit_bzero` / cache drop / `poweroff -f` on exit.
+  - Remaining operator step (requires physical ceremony machine & throwaway USB drives):
+    execute the real-hardware dry run below on target hardware before live use.
 
 ## 5. Ceremony runbook
 
-Draft — finalized in Phase 8.
+Finalized from implementation, hardening review, and QEMU BIOS/UEFI/Secure Boot testing.
+
+**One-time offline key setup (if `keys/` is empty)**
+1. On an offline build machine, insert a dedicated backup USB key drive (mounted e.g. at
+   `/media/keyusb`) and run:
+   ```bash
+   scripts/gen-signing-key.sh /media/keyusb
+   ```
+   Choose a strong passphrase for the AES-256-encrypted `shardkey-signing.key`. Make **two**
+   copies of the key drive, keep them offline in separate safe places, and write the SHA-256
+   fingerprint from `keys/FINGERPRINT.txt` on paper.
 
 **Before the day**
-1. Build and sign on the build machine (`make`, `make sign`), then `make verify`.
-   Ideally a second person rebuilds from the same commit and gets the same
-   `bzImage.unsigned` hash.
-2. Write the boot stick (`make usb`); it is read back and checked automatically.
-3. Prepare the ceremony machine (UEFI): ShardKey certificate enrolled, Secure Boot
-   **on**, boot from USB enabled, network cable unplugged, Wi-Fi card removed if
-   possible. Confirm an unsigned image is refused ([SIGNING.md](SIGNING.md) §4.4).
-4. Decide `n` and `k` in advance (`k` must be at least a majority of `n`).
-5. Prepare `n` new USB drives, labels, and a six-sided die.
+1. Verify host tools, fetch/verify sources, build, and run tests on the build machine:
+   ```bash
+   make check-host && make fetch && make && make test
+   ```
+   Confirm `out/bzImage.unsigned` SHA-256 matches an independent rebuild by a second operator
+   from the same git commit.
+2. Sign the release using the offline key drive, unplug the key drive immediately, and verify:
+   ```bash
+   make sign KEY=/media/keyusb/shardkey-signing.key
+   # Unplug the key USB drive now!
+   make verify
+   ```
+   Check that the printed certificate fingerprint matches your paper copy.
+3. Write and read-back-verify the physical boot stick (`>= 72 MiB`; contents erased):
+   ```bash
+   sudo make usb DEV=/dev/sdX
+   ```
+4. Prepare the ceremony machine (UEFI recommended) and run a **throwaway-drive dry run**:
+   - Physically disconnect Ethernet and remove/disable Wi-Fi/Bluetooth if possible.
+   - Enter UEFI setup → **Secure Boot → Custom** → enroll `keys/shardkey-signing.cer` into
+     `db`, **delete all third-party/Microsoft `db` keys**, enable **Secure Boot**, save.
+   - Verify an unsigned stick (`dd` of `out/bzImage.unsigned` or unsigned `.img`) is **refused**
+     at boot, while the signed ShardKey USB stick boots cleanly ([SIGNING.md](SIGNING.md) §4.4).
+   - Complete one full throwaway ceremony (using `>= 64 MiB` blank FAT32-capable USB drives),
+     testing unplug/re-insert verification, poweroff, and 5-minute cold-RAM wait.
+5. For the real ceremony, decide `n` (2–16) and `k` (at least `floor(n/2) + 1`) in advance,
+   and prepare `n` blank USB flash drives (`>= 64 MiB` each), physical labels, and a 6-sided die.
 
 **On the day**
-1. Power on from the boot stick. Check the version banner on screen.
-2. Remove the boot stick when asked.
-3. Enter `n`, then `k` (M = majority), and confirm.
-4. Roll the die at least 100 times and type each result. Don't say the numbers aloud
-   or write them down.
-5. Write down the set ID and secret fingerprint shown on screen (not secret).
-6. Insert, confirm, re-insert, and label each share drive as prompted.
-7. When "Powering off" appears and the machine is off, unplug it and keep it unpowered
-   for at least 5 minutes.
-8. Hand each drive to its holder.
+1. Power on from the ShardKey USB boot stick and confirm the version banner.
+2. Unplug the boot stick (and any other USB drives) when prompted, then press `Enter`.
+3. Enter `n`, then `k` (`M` selects strict majority), and type `YES` to confirm.
+   (If `k = n`, confirm the extra warning carefully.)
+4. Roll a physical six-sided die at least 100 times, typing digits `1–6` silently (never read
+   them aloud or write them down), then press `Enter`.
+5. Write down the non-secret `set ID` and `secret fingerprint` shown on screen.
+6. For each share `1..n`: insert a blank target drive, confirm `Type YES to erase it:`,
+   wait for formatting and writing, unplug when asked, re-insert to verify read-back, then
+   unplug and physically label it `Share i of n, set <4-hex>`.
+7. Wait until `Caches cleared; powering off.` completes and the machine powers off completely.
+   Disconnect power and leave the machine unpowered for **at least 5 minutes** before moving
+   or repurposing it.
+8. Distribute each share drive separately to its holder.
 
-**If the ceremony is aborted:** shares already written are part of a set that no
-longer has a "rest". If fewer than `k` were written they reveal nothing, but they must
-still be erased or destroyed so they aren't mixed up later. If `k` or more were
-written, the secret **can** be rebuilt from them — treat them as live or destroy them.
+**If the ceremony is aborted (`Ctrl-C`, `Ctrl-Alt-Del`, `ABORT`, or power loss):**
+- `Ctrl-C`, `Ctrl-Alt-Del`, and `ABORT` immediately wipe in-RAM secrets, drop caches, and power
+  off cleanly.
+- Already-written drives from an aborted ceremony belong to a set that has no matching rest.
+  Even if fewer than `k` shares were written, erase or physically destroy every drive written
+  so it can never be confused with a live set. If `k` or more were written, treat them as
+  holding the secret or destroy them.
 
 ## 6. Resolved questions
 
