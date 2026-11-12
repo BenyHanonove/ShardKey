@@ -40,6 +40,16 @@ case "${DEV_NAME}" in
     *) die "expected whole-disk device like /dev/sda, got: ${DEV}" ;;
 esac
 
+cleanup_stale_node() {
+    if [ -n "${DEV:-}" ] && [ -e "${DEV}" ] && [ ! -b "${DEV}" ]; then
+        rm -f "${DEV}" >/dev/null 2>&1 || true
+    fi
+    if [ -n "${PART:-}" ] && [ -e "${PART}" ] && [ ! -b "${PART}" ]; then
+        rm -f "${PART}" >/dev/null 2>&1 || true
+    fi
+}
+trap cleanup_stale_node EXIT
+
 [ -b "${DEV}" ] || die "block device does not exist: ${DEV}"
 
 SYS_BLK="/sys/block/${DEV_NAME}"
@@ -63,8 +73,13 @@ if [ -r /proc/mounts ]; then
 fi
 
 # Clear first 1 MiB and flush any stale kernel partition mappings
+[ -b "${DEV}" ] || die "block device disappeared before erase: ${DEV}"
 if ! dd_out="$(dd if=/dev/zero of="${DEV}" bs=1048576 count=1 2>&1)"; then
     die "failed to zero first 1 MiB of ${DEV}: ${dd_out}"
+fi
+if [ ! -b "${DEV}" ]; then
+    cleanup_stale_node
+    die "block device disappeared during erase: ${DEV}"
 fi
 sync
 blockdev --rereadpt "${DEV}" >/dev/null 2>&1 || true

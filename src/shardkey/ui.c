@@ -195,9 +195,11 @@ int ui_collect_dice(FILE *in,
 	}
 
 	fprintf(out,
-	        "Roll a die and type the results (digits 1-6). At least %u rolls.\n"
-	        "Rolls: 0/%u",
-	        SHARDKEY_MIN_DICE_ROLLS, SHARDKEY_MIN_DICE_ROLLS);
+	        "Roll a 6-sided die and press digits 1-6 (hidden for privacy; each keypress = 1 roll).\n"
+	        "Minimum %u rolls, maximum %zu rolls.\n"
+	        "Rolls: 0/%u (max %zu)",
+	        SHARDKEY_MIN_DICE_ROLLS, max_rolls,
+	        SHARDKEY_MIN_DICE_ROLLS, max_rolls);
 	fflush(out);
 
 	int rc = -1;
@@ -213,16 +215,19 @@ int ui_collect_dice(FILE *in,
 		enum dice_feed_result res = entropy_dice_feed_char(&dc, (char)ch);
 		if (res == DICE_ACCEPTED) {
 			if (dc.count >= SHARDKEY_MIN_DICE_ROLLS) {
-				fprintf(out, "\rRolls: %zu/%u (press Enter to finish)   ",
-				        dc.count, SHARDKEY_MIN_DICE_ROLLS);
+				fprintf(out,
+				        "\rRolls: %zu/%zu max (min %u reached; press Enter to finish)   ",
+				        dc.count, max_rolls, SHARDKEY_MIN_DICE_ROLLS);
 			} else {
-				fprintf(out, "\rRolls: %zu/%u                           ",
-				        dc.count, SHARDKEY_MIN_DICE_ROLLS);
+				fprintf(out,
+				        "\rRolls: %zu/%u (max %zu)                                      ",
+				        dc.count, SHARDKEY_MIN_DICE_ROLLS, max_rolls);
 			}
 			fflush(out);
 		} else if (res == DICE_FULL) {
-			fprintf(out, "\rRolls: %zu/%u (max reached; press Enter)",
-			        dc.count, SHARDKEY_MIN_DICE_ROLLS);
+			fprintf(out,
+			        "\rRolls: %zu/%zu max reached (press Enter to finish)            ",
+			        dc.count, max_rolls);
 			fflush(out);
 		} else if (res == DICE_NEED_MORE) {
 			if (!have_tty && ch == '\r') {
@@ -231,7 +236,8 @@ int ui_collect_dice(FILE *in,
 					(void)ungetc(next, in);
 				}
 			}
-			fprintf(out, "\rRolls: %zu/%u (need at least %u rolls)  ",
+			fprintf(out,
+			        "\rRolls: %zu/%u (need at least %u rolls; press 1-6)             ",
 			        dc.count, SHARDKEY_MIN_DICE_ROLLS, SHARDKEY_MIN_DICE_ROLLS);
 			fflush(out);
 		} else if (res == DICE_DONE) {
@@ -241,8 +247,9 @@ int ui_collect_dice(FILE *in,
 					(void)ungetc(next, in);
 				}
 			}
-			fprintf(out, "\rRolls: %zu/%u (complete)                \n",
-			        dc.count, SHARDKEY_MIN_DICE_ROLLS);
+			fprintf(out,
+			        "\rRolls: %zu/%zu max (complete)                                 \n",
+			        dc.count, max_rolls);
 			fflush(out);
 			*out_len = dc.count;
 			rc = 0;

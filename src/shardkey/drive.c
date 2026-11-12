@@ -327,6 +327,19 @@ int drive_wait_inserted(const char *sys_block_dir,
 			}
 			if (drive_read_info(sys_block_dir, dev_dir, list[0].name, out_info) == 0 &&
 			    out_info->size_bytes > 0u) {
+				if (strcmp(dev_dir, "/dev") == 0) {
+					struct stat st;
+					if (stat(out_info->dev_node, &st) != 0 || !S_ISBLK(st.st_mode)) {
+						sleep_ms(poll_ms);
+						continue;
+					}
+					int fd = open(out_info->dev_node, O_RDONLY | O_CLOEXEC);
+					if (fd < 0) {
+						sleep_ms(poll_ms);
+						continue;
+					}
+					close(fd);
+				}
 				return 0;
 			}
 		}
