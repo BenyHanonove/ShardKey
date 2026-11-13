@@ -1,6 +1,6 @@
-# ShardKey — Kernel Configuration
+# Symbolon — Kernel Configuration
 
-Which kernel features and drivers ShardKey keeps, which it removes, and how the
+Which kernel features and drivers Symbolon keeps, which it removes, and how the
 removal is done and checked.
 
 Target: **x86_64**, latest LTS kernel (pinned in `config/versions.env`).
@@ -14,7 +14,7 @@ off** and switch on only what is listed here.
 
 ```bash
 # 1. Everything off, then apply our "keep" list (a version-controlled fragment)
-make O=build/kernel ARCH=x86_64 allnoconfig KCONFIG_ALLCONFIG=config/kernel/shardkey.config
+make O=build/kernel ARCH=x86_64 allnoconfig KCONFIG_ALLCONFIG=config/kernel/symbolon.config
 ```
 
 ```bash

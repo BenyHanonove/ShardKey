@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Phase 6 QEMU end-to-end verification suite for ShardKey.
+# Phase 6 QEMU end-to-end verification suite for Symbolon.
 # Exercises the debug kernel (out/debug/bzImage) in BOTH BIOS (SeaBIOS) and
 # UEFI (OVMF) modes with virtual xHCI USB storage hot-plug/unplug over QMP:
 #   - Boot stick USB detection and forced removal at startup
@@ -50,7 +50,7 @@ done
 
 if [[ ! -x "${COMBINE_CHECK}" ]]; then
     log "Building host share verification helper (${COMBINE_CHECK})..."
-    make -C "${ROOT_DIR}/src/shardkey" BUILD_DIR="${BUILD_DIR}/tool-test" test >/dev/null
+    make -C "${ROOT_DIR}/src/symbolon" BUILD_DIR="${BUILD_DIR}/tool-test" test >/dev/null
 fi
 [[ -x "${COMBINE_CHECK}" ]] || die "failed to build ${COMBINE_CHECK}"
 
@@ -59,13 +59,20 @@ if [[ ! -f "${INITRAMFS_IMG}" ]]; then
     "${ROOT_DIR}/scripts/build-rootfs.sh"
 fi
 
-if [[ ! -f "${DEBUG_KERNEL}" ]] || [[ "${INITRAMFS_IMG}" -nt "${DEBUG_KERNEL}" ]]; then
+# Rebuild the debug kernel when its inputs change. Compare content hashes, not mtimes:
+# reproducible builds pin every mtime to SOURCE_DATE_EPOCH, so "-nt" never fires and a
+# stale debug kernel (with an old embedded initramfs) would be tested silently.
+DEBUG_STAMP="${OUT_DIR}/debug/inputs.sha256"
+debug_inputs_hash="$(cat "${INITRAMFS_IMG}" "${ROOT_DIR}"/config/kernel/*.config | sha256sum | cut -d' ' -f1)"
+if [[ ! -f "${DEBUG_KERNEL}" ]] || [[ ! -f "${DEBUG_STAMP}" ]] \
+    || [[ "$(cat "${DEBUG_STAMP}")" != "${debug_inputs_hash}" ]]; then
     log "Building QEMU debug kernel (${DEBUG_KERNEL})..."
     "${ROOT_DIR}/scripts/build-kernel.sh" --debug
+    printf '%s\n' "${debug_inputs_hash}" > "${DEBUG_STAMP}"
 fi
 [[ -f "${DEBUG_KERNEL}" ]] || die "missing debug kernel: ${DEBUG_KERNEL}"
 
-WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/shardkey-qemu-test.XXXXXX")"
+WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/symbolon-qemu-test.XXXXXX")"
 cleanup() {
     rm -rf "${WORK_DIR}"
 }
@@ -84,24 +91,24 @@ dd if="${SYSLINUX_MBR}" of="${BOOT_IMG}" bs=440 count=1 conv=notrunc status=none
 # Format partition separately then copy into sector 2048 so host mkfs.vfat needs no --offset
 PART_SECTORS=$((72 * 1024 * 2 - 2048))
 PART_BLOCKS=$((PART_SECTORS / 2))
-mkfs.vfat -F 32 -n SHARDKEY -C "${PART_IMG}" "${PART_BLOCKS}" >/dev/null
+mkfs.vfat -F 32 -n SYMBOLON -C "${PART_IMG}" "${PART_BLOCKS}" >/dev/null
 dd if="${PART_IMG}" of="${BOOT_IMG}" bs=512 seek=2048 conv=notrunc status=none
 rm -f "${PART_IMG}"
 
 cat >"${SYSLINUX_CFG}" <<'EOF'
-DEFAULT shardkey
+DEFAULT symbolon
 PROMPT 0
 TIMEOUT 0
 
-LABEL shardkey
-    LINUX /shardkey/bzImage
+LABEL symbolon
+    LINUX /symbolon/bzImage
 EOF
 
 BOOT_MTOOLS_IMG="${BOOT_IMG}@@1048576"
-mmd -i "${BOOT_MTOOLS_IMG}" ::/EFI ::/EFI/BOOT ::/shardkey ::/syslinux
+mmd -i "${BOOT_MTOOLS_IMG}" ::/EFI ::/EFI/BOOT ::/symbolon ::/syslinux
 syslinux --offset $((2048 * 512)) -d /syslinux -i "${BOOT_IMG}"
 mcopy -i "${BOOT_MTOOLS_IMG}" "${DEBUG_KERNEL}" ::/EFI/BOOT/BOOTX64.EFI
-mcopy -i "${BOOT_MTOOLS_IMG}" "${DEBUG_KERNEL}" ::/shardkey/bzImage
+mcopy -i "${BOOT_MTOOLS_IMG}" "${DEBUG_KERNEL}" ::/symbolon/bzImage
 mcopy -i "${BOOT_MTOOLS_IMG}" "${SYSLINUX_CFG}" ::/syslinux/syslinux.cfg
 rm -f "${SYSLINUX_CFG}"
 
@@ -156,7 +163,7 @@ def run_mtools_verify(img_paths, expected_k, expected_n, expected_set_id, expect
         res = subprocess.run(["mdir", "-b", "-i", m_img, "::/"], capture_output=True, text=True, check=True)
         entries = [line.strip().split("/")[-1] for line in res.stdout.splitlines() if line.strip()]
         entries_lower = sorted(e.lower() for e in entries)
-        expected_share_name = f"shardkey-share-{idx}-of-{expected_n}.txt"
+        expected_share_name = f"symbolon-share-{idx}-of-{expected_n}.txt"
         expected_files = sorted(["readme.txt", expected_share_name])
         if entries_lower != expected_files:
             raise AssertionError(
@@ -432,7 +439,7 @@ class QemuSession:
 
 def boot_and_unplug_boot_stick(sess):
     # Booting from usb-storage triggers either /init's USB gate (if xHCI probed
-    # before PID 1 started) or /bin/shardkey's USB wait after Press Enter.
+    # before PID 1 started) or /bin/symbolon's USB wait after Press Enter.
     matched, _ = sess.read_until_any(
         [
             "Remove all USB drives (including the boot stick) to continue...",
@@ -511,7 +518,7 @@ def test_happy_path(mode, n, k_expected):
         for idx, img in enumerate(imgs, start=1):
             write_and_verify_share(sess, idx, n, img)
         sess.read_until(f"All {n} shares written and verified. Wiping memory...")
-        sess.read_until("ShardKey ceremony completed (exit 0). Caches cleared; powering off.")
+        sess.read_until("Symbolon ceremony completed (exit 0). Caches cleared; powering off.")
         sess.wait_poweroff()
     finally:
         sess.close()
@@ -535,7 +542,7 @@ def test_failure_modes(mode):
         # 1. Wrong drive inserted (boot stick)
         sess.read_until("Insert blank drive for share 1/2...")
         dev_b, bd_b = sess.attach_usb(BOOT_IMG, read_only=True)
-        sess.read_until("ERROR on share 1/2: this drive appears to be the ShardKey boot stick")
+        sess.read_until("ERROR on share 1/2: this drive appears to be the Symbolon boot stick")
         sess.read_until("press Enter to retry share 1/2 (or type ABORT to cancel):")
         sess.detach_usb(dev_b, bd_b)
         time.sleep(0.4)
@@ -580,7 +587,7 @@ def test_failure_modes(mode):
         # Recover and write share 2 cleanly
         write_and_verify_share(sess, 2, 2, s2_img)
         sess.read_until("All 2 shares written and verified. Wiping memory...")
-        sess.read_until("ShardKey ceremony completed (exit 0). Caches cleared; powering off.")
+        sess.read_until("Symbolon ceremony completed (exit 0). Caches cleared; powering off.")
         sess.wait_poweroff()
     finally:
         sess.close()
@@ -606,7 +613,7 @@ def test_ctrl_c_interrupt(mode):
         sess.read_until("Rolls: 12/100")
         # 5. Send Ctrl-C (0x03) mid-ceremony during raw dice collection
         sess.send(b"\x03")
-        sess.read_until("ShardKey exited with status 1. Caches cleared; powering off.")
+        sess.read_until("Symbolon exited with status 1. Caches cleared; powering off.")
         sess.wait_poweroff()
     finally:
         sess.close()
@@ -656,7 +663,7 @@ def test_uefi_secboot():
     )
     part_blocks = (72 * 1024 * 2 - 2048) // 2
     subprocess.run(
-        ["mkfs.vfat", "-F", "32", "-n", "SHARDKEY", "-C", part_img, str(part_blocks)],
+        ["mkfs.vfat", "-F", "32", "-n", "SYMBOLON", "-C", part_img, str(part_blocks)],
         check=True,
         stdout=subprocess.DEVNULL,
     )
@@ -721,7 +728,7 @@ def test_uefi_secboot():
                 out_u += sk_u.recv(4096).decode("utf-8", "replace")
                 if "Access Denied" in out_u or "Security Violation" in out_u:
                     break
-        if "ShardKey" in out_u:
+        if "Symbolon" in out_u:
             raise AssertionError(f"Unsigned kernel booted under Secure Boot!\n{out_u}")
         if "Access Denied" not in out_u and "Security Violation" not in out_u:
             raise AssertionError(f"Expected Secure Boot refusal for unsigned image, got:\n{out_u}")

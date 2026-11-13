@@ -37,14 +37,14 @@ static int read_share_file(const char *path, char *buf, size_t cap, size_t *out_
 
 int main(int argc, char **argv)
 {
-	if (argc < 3 || (size_t)(argc - 1) > SHARDKEY_MAX_SHARES) {
+	if (argc < 3 || (size_t)(argc - 1) > SYMBOLON_MAX_SHARES) {
 		fprintf(stderr, "usage: %s <share-1> <share-2> [... up to %u shares]\n",
-		        argc > 0 ? argv[0] : "combine_check", SHARDKEY_MAX_SHARES);
+		        argc > 0 ? argv[0] : "combine_check", SYMBOLON_MAX_SHARES);
 		return 2;
 	}
 
 	size_t count = (size_t)(argc - 1);
-	struct shardkey_share_record recs[SHARDKEY_MAX_SHARES];
+	struct symbolon_share_record recs[SYMBOLON_MAX_SHARES];
 	char file_buf[4096];
 	int rc = 1;
 
@@ -78,7 +78,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Verify indices cover 1..n exactly once */
-	bool seen[SHARDKEY_MAX_SHARES + 1u];
+	bool seen[SYMBOLON_MAX_SHARES + 1u];
 	memset(seen, 0, sizeof(seen));
 	for (size_t i = 0u; i < count; i++) {
 		if (recs[i].index < 1u || recs[i].index > n || seen[recs[i].index]) {
@@ -90,12 +90,12 @@ int main(int argc, char **argv)
 	}
 
 	/* Exhaustively combine all C(n, k) k-subsets */
-	uint8_t comb[SHARDKEY_MAX_SHARES];
-	uint8_t x_coords[SHARDKEY_MAX_SHARES];
-	uint8_t y_shares[SHARDKEY_MAX_SHARES][SHARDKEY_SECRET_LEN];
-	uint8_t ref_secret[SHARDKEY_SECRET_LEN];
-	uint8_t recovered[SHARDKEY_SECRET_LEN];
-	uint8_t fp[SHARDKEY_FINGERPRINT_LEN];
+	uint8_t comb[SYMBOLON_MAX_SHARES];
+	uint8_t x_coords[SYMBOLON_MAX_SHARES];
+	uint8_t y_shares[SYMBOLON_MAX_SHARES][SYMBOLON_SECRET_LEN];
+	uint8_t ref_secret[SYMBOLON_SECRET_LEN];
+	uint8_t recovered[SYMBOLON_SECRET_LEN];
+	uint8_t fp[SYMBOLON_FINGERPRINT_LEN];
 
 	for (uint8_t i = 0u; i < k; i++) {
 		comb[i] = i;
@@ -106,25 +106,25 @@ int main(int argc, char **argv)
 
 	for (;;) {
 		for (uint8_t i = 0u; i < k; i++) {
-			const struct shardkey_share_record *r = &recs[comb[i]];
+			const struct symbolon_share_record *r = &recs[comb[i]];
 			x_coords[i] = r->index;
-			memcpy(y_shares[i], r->data, SHARDKEY_SECRET_LEN);
+			memcpy(y_shares[i], r->data, SYMBOLON_SECRET_LEN);
 		}
 
-		if (shamir_combine(x_coords, (const uint8_t (*)[SHARDKEY_SECRET_LEN])y_shares,
+		if (shamir_combine(x_coords, (const uint8_t (*)[SYMBOLON_SECRET_LEN])y_shares,
 		                   k, recovered) != 0) {
 			fprintf(stderr, "combine_check: shamir_combine failed on subset %zu\n", subsets);
 			goto wipe_secrets;
 		}
 		if (share_fmt_fingerprint(recovered, fp) != 0 ||
-		    secmem_ct_equal(fp, recs[0].fingerprint, SHARDKEY_FINGERPRINT_LEN) != 1) {
+		    secmem_ct_equal(fp, recs[0].fingerprint, SYMBOLON_FINGERPRINT_LEN) != 1) {
 			fprintf(stderr, "combine_check: fingerprint mismatch on subset %zu\n", subsets);
 			goto wipe_secrets;
 		}
 		if (!have_ref) {
-			memcpy(ref_secret, recovered, SHARDKEY_SECRET_LEN);
+			memcpy(ref_secret, recovered, SYMBOLON_SECRET_LEN);
 			have_ref = true;
-		} else if (secmem_ct_equal(recovered, ref_secret, SHARDKEY_SECRET_LEN) != 1) {
+		} else if (secmem_ct_equal(recovered, ref_secret, SYMBOLON_SECRET_LEN) != 1) {
 			fprintf(stderr, "combine_check: secret mismatch across subset %zu\n", subsets);
 			goto wipe_secrets;
 		}
@@ -143,10 +143,10 @@ int main(int argc, char **argv)
 		}
 	}
 
-	char set_id_hex[SHARDKEY_SET_ID_LEN * 2u + 1u];
-	char fp_hex[SHARDKEY_FINGERPRINT_LEN * 2u + 1u];
-	share_fmt_hex_encode(recs[0].set_id, SHARDKEY_SET_ID_LEN, set_id_hex);
-	share_fmt_hex_encode(recs[0].fingerprint, SHARDKEY_FINGERPRINT_LEN, fp_hex);
+	char set_id_hex[SYMBOLON_SET_ID_LEN * 2u + 1u];
+	char fp_hex[SYMBOLON_FINGERPRINT_LEN * 2u + 1u];
+	share_fmt_hex_encode(recs[0].set_id, SYMBOLON_SET_ID_LEN, set_id_hex);
+	share_fmt_hex_encode(recs[0].fingerprint, SYMBOLON_FINGERPRINT_LEN, fp_hex);
 
 	printf("OK set_id=%s fingerprint=%s k=%u n=%u subsets=%zu\n",
 	       set_id_hex, fp_hex, (unsigned int)k, (unsigned int)n, subsets);

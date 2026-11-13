@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# ShardKey C ceremony program and unit test Makefile.
+# Symbolon C ceremony program and unit test Makefile.
 # Reference: docs/PLAN.md (§1 step 5, §4 Phase 2) and docs/DECISIONS.md (D-004).
 
 SHELL := /usr/bin/env bash
@@ -42,8 +42,8 @@ TEST_OBJS          := $(LIB_TEST_OBJS) \
 COMBINE_CHECK_OBJS := $(LIB_TEST_OBJS) \
                       $(BUILD_DIR)/test-obj/combine_check.o
 
-TARGET_BIN         := $(BUILD_DIR)/shardkey
-TEST_BIN           := $(BUILD_DIR)/test_shardkey
+TARGET_BIN         := $(BUILD_DIR)/symbolon
+TEST_BIN           := $(BUILD_DIR)/test_symbolon
 COMBINE_CHECK_BIN  := $(BUILD_DIR)/combine_check
 MUSL_SYSROOT       := $(BUILD_DIR)/musl-sysroot
 
@@ -74,7 +74,7 @@ ensure-cc:
 					"$(MUSL_SYSROOT)/usr/bin/musl-gcc"; \
 			fi; \
 		else \
-			echo "[shardkey] ERROR: compiler '$(CC)' not found." >&2; \
+			echo "[symbolon] ERROR: compiler '$(CC)' not found." >&2; \
 			exit 1; \
 		fi; \
 	fi
@@ -98,32 +98,32 @@ $(TARGET_BIN): $(TOOL_OBJS)
 verify-static: $(TARGET_BIN)
 	@file_out="$$(file "$(TARGET_BIN)")"; \
 	if [[ "$${file_out}" != *"statically linked"* ]]; then \
-		echo "[shardkey] ERROR: $(TARGET_BIN) is not statically linked: $${file_out}" >&2; \
+		echo "[symbolon] ERROR: $(TARGET_BIN) is not statically linked: $${file_out}" >&2; \
 		exit 1; \
 	fi
 	@readelf_out="$$(readelf -d "$(TARGET_BIN)")"; \
 	if [[ "$${readelf_out}" != *"There is no dynamic section in this file"* ]]; then \
-		echo "[shardkey] ERROR: $(TARGET_BIN) has a dynamic section:" >&2; \
+		echo "[symbolon] ERROR: $(TARGET_BIN) has a dynamic section:" >&2; \
 		echo "$${readelf_out}" >&2; \
 		exit 1; \
 	fi
 	@if nm -u $(TOOL_OBJS) | grep -E '\b(malloc|calloc|realloc)\b' >/dev/null 2>&1; then \
-		echo "[shardkey] ERROR: $(TARGET_BIN) object files reference heap allocation (malloc/calloc/realloc)!" >&2; \
+		echo "[symbolon] ERROR: $(TARGET_BIN) object files reference heap allocation (malloc/calloc/realloc)!" >&2; \
 		exit 1; \
 	fi
-	@echo "[shardkey] OK: $(TARGET_BIN) is statically linked with no dynamic section and no heap allocations."
+	@echo "[symbolon] OK: $(TARGET_BIN) is statically linked with no dynamic section and no heap allocations."
 
 $(BUILD_DIR)/test-obj/%.o: $(SRC_DIR)/%.c
 	@mkdir -p "$(dir $@)"
-	$(HOSTCC) $(TEST_CFLAGS) -DSHARDKEY_TEST_BUILD=1 -c "$<" -o "$@"
+	$(HOSTCC) $(TEST_CFLAGS) -DSYMBOLON_TEST_BUILD=1 -c "$<" -o "$@"
 
 $(BUILD_DIR)/test-obj/test_main.o: $(SRC_DIR)/tests/test_main.c
 	@mkdir -p "$(dir $@)"
-	$(HOSTCC) $(TEST_CFLAGS) -DSHARDKEY_TEST_BUILD=1 -c "$<" -o "$@"
+	$(HOSTCC) $(TEST_CFLAGS) -DSYMBOLON_TEST_BUILD=1 -c "$<" -o "$@"
 
 $(BUILD_DIR)/test-obj/combine_check.o: $(SRC_DIR)/tests/combine_check.c
 	@mkdir -p "$(dir $@)"
-	$(HOSTCC) $(TEST_CFLAGS) -DSHARDKEY_TEST_BUILD=1 -c "$<" -o "$@"
+	$(HOSTCC) $(TEST_CFLAGS) -DSYMBOLON_TEST_BUILD=1 -c "$<" -o "$@"
 
 $(TEST_BIN): $(TEST_OBJS)
 	@mkdir -p "$(dir $@)"

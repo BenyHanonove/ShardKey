@@ -47,7 +47,7 @@ void ui_print_banner(FILE *out)
 	fprintf(out,
 		"\n"
 		"============================================================\n"
-		"  ShardKey — Air-Gapped Shamir Secret Sharing Ceremony (v1)\n"
+		"  Symbolon — Air-Gapped Shamir Secret Sharing Ceremony (v1)\n"
 		"============================================================\n\n");
 	fflush(out);
 }
@@ -198,8 +198,8 @@ int ui_collect_dice(FILE *in,
 	        "Roll a 6-sided die and press digits 1-6 (hidden for privacy; each keypress = 1 roll).\n"
 	        "Minimum %u rolls, maximum %zu rolls.\n"
 	        "Rolls: 0/%u (max %zu)",
-	        SHARDKEY_MIN_DICE_ROLLS, max_rolls,
-	        SHARDKEY_MIN_DICE_ROLLS, max_rolls);
+	        SYMBOLON_MIN_DICE_ROLLS, max_rolls,
+	        SYMBOLON_MIN_DICE_ROLLS, max_rolls);
 	fflush(out);
 
 	int rc = -1;
@@ -214,14 +214,14 @@ int ui_collect_dice(FILE *in,
 
 		enum dice_feed_result res = entropy_dice_feed_char(&dc, (char)ch);
 		if (res == DICE_ACCEPTED) {
-			if (dc.count >= SHARDKEY_MIN_DICE_ROLLS) {
+			if (dc.count >= SYMBOLON_MIN_DICE_ROLLS) {
 				fprintf(out,
 				        "\rRolls: %zu/%zu max (min %u reached; press Enter to finish)   ",
-				        dc.count, max_rolls, SHARDKEY_MIN_DICE_ROLLS);
+				        dc.count, max_rolls, SYMBOLON_MIN_DICE_ROLLS);
 			} else {
 				fprintf(out,
 				        "\rRolls: %zu/%u (max %zu)                                      ",
-				        dc.count, SHARDKEY_MIN_DICE_ROLLS, max_rolls);
+				        dc.count, SYMBOLON_MIN_DICE_ROLLS, max_rolls);
 			}
 			fflush(out);
 		} else if (res == DICE_FULL) {
@@ -238,7 +238,7 @@ int ui_collect_dice(FILE *in,
 			}
 			fprintf(out,
 			        "\rRolls: %zu/%u (need at least %u rolls; press 1-6)             ",
-			        dc.count, SHARDKEY_MIN_DICE_ROLLS, SHARDKEY_MIN_DICE_ROLLS);
+			        dc.count, SYMBOLON_MIN_DICE_ROLLS, SYMBOLON_MIN_DICE_ROLLS);
 			fflush(out);
 		} else if (res == DICE_DONE) {
 			if (!have_tty && ch == '\r') {
@@ -269,7 +269,7 @@ int ui_collect_dice(FILE *in,
 	return rc;
 }
 
-void ui_short_set_id(const uint8_t set_id[SHARDKEY_SET_ID_LEN], char out_short[5])
+void ui_short_set_id(const uint8_t set_id[SYMBOLON_SET_ID_LEN], char out_short[5])
 {
 	static const char uhex[16] = "0123456789ABCDEF";
 	out_short[0] = uhex[(set_id[0] >> 4u) & 0x0fu];
@@ -282,18 +282,18 @@ void ui_short_set_id(const uint8_t set_id[SHARDKEY_SET_ID_LEN], char out_short[5
 void ui_print_ceremony_info(FILE *out,
                             uint8_t k,
                             uint8_t n,
-                            const uint8_t set_id[SHARDKEY_SET_ID_LEN],
-                            const uint8_t fingerprint[SHARDKEY_FINGERPRINT_LEN])
+                            const uint8_t set_id[SYMBOLON_SET_ID_LEN],
+                            const uint8_t fingerprint[SYMBOLON_FINGERPRINT_LEN])
 {
 	if (out == NULL || set_id == NULL || fingerprint == NULL) {
 		return;
 	}
 
-	char set_id_hex[SHARDKEY_SET_ID_LEN * 2u + 1u];
-	char fp_hex[SHARDKEY_FINGERPRINT_LEN * 2u + 1u];
+	char set_id_hex[SYMBOLON_SET_ID_LEN * 2u + 1u];
+	char fp_hex[SYMBOLON_FINGERPRINT_LEN * 2u + 1u];
 
-	share_fmt_hex_encode(set_id, SHARDKEY_SET_ID_LEN, set_id_hex);
-	share_fmt_hex_encode(fingerprint, SHARDKEY_FINGERPRINT_LEN, fp_hex);
+	share_fmt_hex_encode(set_id, SYMBOLON_SET_ID_LEN, set_id_hex);
+	share_fmt_hex_encode(fingerprint, SYMBOLON_FINGERPRINT_LEN, fp_hex);
 
 	fprintf(out,
 	        "\nCeremony parameters ready:\n"

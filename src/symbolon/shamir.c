@@ -18,19 +18,19 @@ static uint8_t poly_eval(uint8_t s0, const uint8_t *coeffs_j, uint8_t deg, uint8
 	return acc;
 }
 
-int shamir_split(const uint8_t secret[SHARDKEY_SECRET_LEN],
+int shamir_split(const uint8_t secret[SYMBOLON_SECRET_LEN],
                  const uint8_t *coeffs,
                  uint8_t k,
                  uint8_t n,
-                 uint8_t out_shares[][SHARDKEY_SECRET_LEN])
+                 uint8_t out_shares[][SYMBOLON_SECRET_LEN])
 {
 	if (secret == NULL || coeffs == NULL || out_shares == NULL) {
 		return -1;
 	}
-	if (n < SHARDKEY_MIN_SHARES || n > SHARDKEY_MAX_SHARES) {
+	if (n < SYMBOLON_MIN_SHARES || n > SYMBOLON_MAX_SHARES) {
 		return -1;
 	}
-	if (k < SHARDKEY_MIN_SHARES || k > n) {
+	if (k < SYMBOLON_MIN_SHARES || k > n) {
 		return -1;
 	}
 
@@ -38,7 +38,7 @@ int shamir_split(const uint8_t secret[SHARDKEY_SECRET_LEN],
 
 	for (uint8_t i = 0u; i < n; i++) {
 		uint8_t x = (uint8_t)(i + 1u);
-		for (size_t j = 0u; j < SHARDKEY_SECRET_LEN; j++) {
+		for (size_t j = 0u; j < SYMBOLON_SECRET_LEN; j++) {
 			const uint8_t *c_j = &coeffs[j * (size_t)deg];
 			out_shares[i][j] = poly_eval(secret[j], c_j, deg, x);
 		}
@@ -48,14 +48,14 @@ int shamir_split(const uint8_t secret[SHARDKEY_SECRET_LEN],
 }
 
 int shamir_combine(const uint8_t *x_coords,
-                   const uint8_t y_shares[][SHARDKEY_SECRET_LEN],
+                   const uint8_t y_shares[][SYMBOLON_SECRET_LEN],
                    uint8_t k,
-                   uint8_t out_secret[SHARDKEY_SECRET_LEN])
+                   uint8_t out_secret[SYMBOLON_SECRET_LEN])
 {
 	if (x_coords == NULL || y_shares == NULL || out_secret == NULL) {
 		return -1;
 	}
-	if (k < SHARDKEY_MIN_SHARES || k > SHARDKEY_MAX_SHARES) {
+	if (k < SYMBOLON_MIN_SHARES || k > SYMBOLON_MAX_SHARES) {
 		return -1;
 	}
 
@@ -71,7 +71,7 @@ int shamir_combine(const uint8_t *x_coords,
 		}
 	}
 
-	memset(out_secret, 0, SHARDKEY_SECRET_LEN);
+	memset(out_secret, 0, SYMBOLON_SECRET_LEN);
 
 	for (uint8_t m = 0u; m < k; m++) {
 		uint8_t num = 1u;
@@ -86,7 +86,7 @@ int shamir_combine(const uint8_t *x_coords,
 		}
 
 		uint8_t basis = gf256_div(num, den);
-		for (size_t j = 0u; j < SHARDKEY_SECRET_LEN; j++) {
+		for (size_t j = 0u; j < SYMBOLON_SECRET_LEN; j++) {
 			out_secret[j] = gf256_add(out_secret[j],
 			                          gf256_mul(basis, y_shares[m][j]));
 		}
@@ -95,25 +95,25 @@ int shamir_combine(const uint8_t *x_coords,
 	return 0;
 }
 
-int shamir_verify_all_subsets(const uint8_t secret[SHARDKEY_SECRET_LEN],
-                              const uint8_t shares[][SHARDKEY_SECRET_LEN],
+int shamir_verify_all_subsets(const uint8_t secret[SYMBOLON_SECRET_LEN],
+                              const uint8_t shares[][SYMBOLON_SECRET_LEN],
                               uint8_t k,
                               uint8_t n)
 {
 	if (secret == NULL || shares == NULL) {
 		return -1;
 	}
-	if (n < SHARDKEY_MIN_SHARES || n > SHARDKEY_MAX_SHARES) {
+	if (n < SYMBOLON_MIN_SHARES || n > SYMBOLON_MAX_SHARES) {
 		return -1;
 	}
-	if (k < SHARDKEY_MIN_SHARES || k > n) {
+	if (k < SYMBOLON_MIN_SHARES || k > n) {
 		return -1;
 	}
 
-	struct shardkey_secpool *pool = secmem_pool();
+	struct symbolon_secpool *pool = secmem_pool();
 	uint8_t *idx = pool->scratch_idx;
 	uint8_t *x_sub = pool->scratch_x;
-	uint8_t (*y_sub)[SHARDKEY_SECRET_LEN] = pool->scratch_shares;
+	uint8_t (*y_sub)[SYMBOLON_SECRET_LEN] = pool->scratch_shares;
 	uint8_t *rebuilt = pool->scratch_secret;
 
 	for (uint8_t m = 0u; m < k; m++) {
@@ -129,12 +129,12 @@ int shamir_verify_all_subsets(const uint8_t secret[SHARDKEY_SECRET_LEN],
 		for (uint8_t m = 0u; m < k; m++) {
 			uint8_t s_idx = idx[m];
 			x_sub[m] = (uint8_t)(s_idx + 1u);
-			memcpy(y_sub[m], shares[s_idx], SHARDKEY_SECRET_LEN);
+			memcpy(y_sub[m], shares[s_idx], SYMBOLON_SECRET_LEN);
 		}
 
-		if (shamir_combine(x_sub, (const uint8_t (*)[SHARDKEY_SECRET_LEN])y_sub,
+		if (shamir_combine(x_sub, (const uint8_t (*)[SYMBOLON_SECRET_LEN])y_sub,
 		                   k, rebuilt) != 0 ||
-		    !secmem_ct_equal(rebuilt, secret, SHARDKEY_SECRET_LEN)) {
+		    !secmem_ct_equal(rebuilt, secret, SYMBOLON_SECRET_LEN)) {
 			rc = -1;
 			break;
 		}

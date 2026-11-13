@@ -1,6 +1,6 @@
-# ShardKey — Threat Model
+# Symbolon — Threat Model
 
-What ShardKey protects, who it protects against, what it assumes, and what it
+What Symbolon protects, who it protects against, what it assumes, and what it
 explicitly does not handle.
 
 ---
@@ -9,7 +9,7 @@ explicitly does not handle.
 
 | Asset | Where it exists | For how long |
 |---|---|---|
-| The 256-bit secret | RAM of the `shardkey` process only | From generation until wipe at the end of the ceremony (minutes) |
+| The 256-bit secret | RAM of the `symbolon` process only | From generation until wipe at the end of the ceremony (minutes) |
 | The polynomial coefficients | Same | Same |
 | Each share | RAM, then its own USB drive | RAM: until wipe. Drive: until the holder destroys it |
 
@@ -23,7 +23,7 @@ shares, and fewer than `k` shares reveal nothing.
   a second person on another machine can rebuild and compare hashes.
 - **The offline signing key is not stolen.** Whoever holds it can make images that
   pass both signature checks ([SIGNING.md](SIGNING.md)).
-- **The ceremony machine's hardware and firmware are not backdoored.** ShardKey cannot
+- **The ceremony machine's hardware and firmware are not backdoored.** Symbolon cannot
   defend against malicious firmware, a CPU backdoor, or a hardware keylogger/implant.
   (A keylogger would capture the dice rolls; the kernel randomness still protects the
   secret unless the CPU/RNG is also compromised.)
@@ -44,14 +44,14 @@ shares, and fewer than `k` shares reveal nothing.
 | Secret paged out or dumped | `mlockall`, no swap, `RLIMIT_CORE=0`, `PR_SET_DUMPABLE=0`, `COREDUMP=n` |
 | Code injected at boot (`init=/bin/sh`, other initramfs) | Command line locked in the kernel (`CMDLINE_OVERRIDE`); initramfs embedded in the kernel |
 | Image modified after build (on the build machine, in transit, or on the stick) | Signed `SHA256SUMS` checked before writing and after writing the stick; Secure Boot with our certificate refuses a modified kernel at boot |
-| A different system pretending to be ShardKey | Ceremony machine's UEFI `db` holds **only** the ShardKey certificate, so nothing else boots |
+| A different system pretending to be Symbolon | Ceremony machine's UEFI `db` holds **only** the Symbolon certificate, so nothing else boots |
 | Weak or backdoored hardware RNG | Mandatory ≥ 100 dice rolls mixed in with SHA-256 |
 | Biased or lazy dice rolling | Kernel randomness mixed in; either source alone is enough |
 | Dice rolls observed | Never echoed on screen (counter only); runbook: don't say them aloud |
 | Threshold set too low (a minority of holders could rebuild) | `k` below a majority of `n` is refused |
 | Threshold set to `k = n` by mistake | Explicit warning + `YES` |
 | Code loaded at runtime | No kernel modules, static binaries only, no shell left for the operator |
-| Malicious USB device (BadUSB pretending to be a keyboard or network card) | No USB network drivers. A fake keyboard can only type into ShardKey's prompts, which only accept "YES" / Enter. Use new drives from a trusted source |
+| Malicious USB device (BadUSB pretending to be a keyboard or network card) | No USB network drivers. A fake keyboard can only type into Symbolon's prompts, which only accept "YES" / Enter. Use new drives from a trusted source |
 | DMA attack via FireWire/Thunderbolt/PCMCIA | Those drivers aren't built |
 | Boot stick formatted as a share by mistake | Ceremony refuses to start until **all** USB drives are removed, then treats only newly inserted drives as targets |
 | Share written badly (bad flash, removed too early) | `fsync`, unplug/re-insert, read back from the drive and compare; per-share `check` |

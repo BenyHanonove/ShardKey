@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Assemble the ShardKey initramfs tree in build/rootfs/, generate the kernel
+# Assemble the Symbolon initramfs tree in build/rootfs/, generate the kernel
 # gen_init_cpio file list (with /dev/console and /dev/null without requiring
 # root), and build a deterministic out/initramfs.cpio.gz archive.
 #
@@ -43,10 +43,10 @@ BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build}"
 SRC_DIR="${SRC_DIR:-${BUILD_DIR}/src}"
 OUT_DIR="${OUT_DIR:-${ROOT_DIR}/out}"
 ROOTFS_DIR="${ROOTFS_DIR:-${BUILD_DIR}/rootfs}"
-TOOL_BIN="${TOOL_BIN:-${BUILD_DIR}/tool/shardkey}"
+TOOL_BIN="${TOOL_BIN:-${BUILD_DIR}/tool/symbolon}"
 BUSYBOX_BIN="${BUSYBOX_BIN:-${BUILD_DIR}/busybox/busybox}"
 INIT_SRC="${INIT_SRC:-${ROOT_DIR}/rootfs/init}"
-PREP_SRC="${PREP_SRC:-${ROOT_DIR}/rootfs/lib/shardkey/prep-drive.sh}"
+PREP_SRC="${PREP_SRC:-${ROOT_DIR}/rootfs/lib/symbolon/prep-drive.sh}"
 INITRAMFS_LIST="${INITRAMFS_LIST:-${BUILD_DIR}/initramfs.list}"
 GEN_INIT_CPIO_BIN="${GEN_INIT_CPIO_BIN:-${BUILD_DIR}/gen_init_cpio}"
 OUT_ARCHIVE="${OUT_ARCHIVE:-${OUT_DIR}/initramfs.cpio.gz}"
@@ -57,7 +57,7 @@ for tool in gcc tar xz gzip cpio sha256sum find sort readlink install; do
 done
 
 [[ "${ROOTFS_DIR}" != *[[:space:]]* ]] || die "ROOTFS_DIR must not contain whitespace: ${ROOTFS_DIR}"
-[[ -x "${TOOL_BIN}" ]] || die "Built shardkey binary not found or not executable: ${TOOL_BIN} (run 'make tool')"
+[[ -x "${TOOL_BIN}" ]] || die "Built symbolon binary not found or not executable: ${TOOL_BIN} (run 'make tool')"
 [[ -x "${BUSYBOX_BIN}" ]] || die "Built BusyBox binary not found or not executable: ${BUSYBOX_BIN} (run 'make busybox')"
 [[ -f "${INIT_SRC}" ]] || die "Missing rootfs init script: ${INIT_SRC}"
 [[ -f "${PREP_SRC}" ]] || die "Missing rootfs prep-drive script: ${PREP_SRC}"
@@ -113,15 +113,15 @@ install -d -m 0755 \
     "${ROOTFS_DIR}/bin" \
     "${ROOTFS_DIR}/dev" \
     "${ROOTFS_DIR}/lib" \
-    "${ROOTFS_DIR}/lib/shardkey" \
+    "${ROOTFS_DIR}/lib/symbolon" \
     "${ROOTFS_DIR}/mnt" \
     "${ROOTFS_DIR}/proc" \
     "${ROOTFS_DIR}/sys"
 
 install -m 0755 "${INIT_SRC}" "${ROOTFS_DIR}/init"
 install -m 0755 "${BUSYBOX_BIN}" "${ROOTFS_DIR}/bin/busybox"
-install -m 0755 "${TOOL_BIN}" "${ROOTFS_DIR}/bin/shardkey"
-install -m 0755 "${PREP_SRC}" "${ROOTFS_DIR}/lib/shardkey/prep-drive.sh"
+install -m 0755 "${TOOL_BIN}" "${ROOTFS_DIR}/bin/symbolon"
+install -m 0755 "${PREP_SRC}" "${ROOTFS_DIR}/lib/symbolon/prep-drive.sh"
 
 mapfile -t applets < <("${BUSYBOX_BIN}" --list | LC_ALL=C sort)
 [[ "${#applets[@]}" -gt 0 ]] || die "BusyBox --list returned zero applets"

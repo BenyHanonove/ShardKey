@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 # Verify the Phase 4 rootfs tree, initramfs.list, and out/initramfs.cpio.gz archive:
-#   1. BusyBox ash syntax checks on /init and /lib/shardkey/prep-drive.sh
-#   2. Static musl ELF checks on /bin/shardkey and /bin/busybox
+#   1. BusyBox ash syntax checks on /init and /lib/symbolon/prep-drive.sh
+#   2. Static musl ELF checks on /bin/symbolon and /bin/busybox
 #   3. gzip -n header check (zero MTIME and FNAME flags)
 #   4. cpio contents check: 0:0 ownership, exact mtimes, /dev/console (c 5 1),
 #      /dev/null (c 1 3), empty mountpoint dirs, and all BusyBox applet symlinks.
@@ -51,12 +51,12 @@ BUSYBOX_BIN="${4:-${BUILD_DIR}/busybox/busybox}"
 # ─────────────────────────────────────────────────────────────
 # 1. Validate scripts and static ELF binaries in staged tree
 # ─────────────────────────────────────────────────────────────
-for script in "${ROOTFS_DIR}/init" "${ROOTFS_DIR}/lib/shardkey/prep-drive.sh"; do
+for script in "${ROOTFS_DIR}/init" "${ROOTFS_DIR}/lib/symbolon/prep-drive.sh"; do
     [[ -x "${script}" ]] || die "Script is missing or not executable: ${script}"
     "${BUSYBOX_BIN}" sh -n "${script}" || die "ash syntax check failed: ${script}"
 done
 
-for bin in "${ROOTFS_DIR}/bin/busybox" "${ROOTFS_DIR}/bin/shardkey"; do
+for bin in "${ROOTFS_DIR}/bin/busybox" "${ROOTFS_DIR}/bin/symbolon"; do
     [[ -x "${bin}" ]] || die "Binary missing or not executable: ${bin}"
     finfo="$(file -b "${bin}")"
     if [[ "${finfo}" != *"ELF 64-bit LSB executable"* || "${finfo}" != *"statically linked"* ]]; then
@@ -67,7 +67,7 @@ for bin in "${ROOTFS_DIR}/bin/busybox" "${ROOTFS_DIR}/bin/shardkey"; do
     fi
 done
 
-for dir in proc sys dev mnt bin lib lib/shardkey; do
+for dir in proc sys dev mnt bin lib lib/symbolon; do
     [[ -d "${ROOTFS_DIR}/${dir}" ]] || die "Missing directory in staged rootfs: ${ROOTFS_DIR}/${dir}"
 done
 
@@ -128,14 +128,14 @@ if ! printf '%s\n' "${listing}" | grep -qE '^crw-rw-rw-[[:space:]]+1[[:space:]]+
 fi
 
 # Required regular executable files
-for req_file in init bin/busybox bin/shardkey lib/shardkey/prep-drive.sh; do
+for req_file in init bin/busybox bin/symbolon lib/symbolon/prep-drive.sh; do
     if ! printf '%s\n' "${listing}" | grep -qE "^-rwxr-xr-x[[:space:]]+1[[:space:]]+0[[:space:]]+0[[:space:]]+[0-9]+.* ${req_file}$"; then
         die "Missing or non-0755 executable '${req_file}' in ${OUT_ARCHIVE}"
     fi
 done
 
 # Required empty directories (proc, sys, mnt must have zero children; dev has only console & null)
-for req_dir in proc sys dev mnt bin lib lib/shardkey; do
+for req_dir in proc sys dev mnt bin lib lib/symbolon; do
     if ! printf '%s\n' "${listing}" | grep -qE "^drwxr-xr-x[[:space:]]+2[[:space:]]+0[[:space:]]+0[[:space:]]+0.* ${req_dir}$"; then
         die "Missing directory '${req_dir}' in ${OUT_ARCHIVE}"
     fi

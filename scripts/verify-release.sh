@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Verify a signed ShardKey release in out/ against the public certificate in keys/
+# Verify a signed Symbolon release in out/ against the public certificate in keys/
 # (docs/SIGNING.md §4.3 & §5, docs/PLAN.md §4 Phase 7):
-#   1. Confirm keys/{shardkey-signing.crt,shardkey-signing.cer,FINGERPRINT.txt} consistency
-#   2. Verify out/SHA256SUMS.sig using keys/shardkey-signing.crt
+#   1. Confirm keys/{symbolon-signing.crt,symbolon-signing.cer,FINGERPRINT.txt} consistency
+#   2. Verify out/SHA256SUMS.sig using keys/symbolon-signing.crt
 #   3. Run sha256sum -c out/SHA256SUMS and ensure all 4 expected release artifacts are listed
-#   4. Run sbverify --cert keys/shardkey-signing.crt out/bzImage
+#   4. Run sbverify --cert keys/symbolon-signing.crt out/bzImage
 #   5. Verify sbattach --remove on out/bzImage matches out/bzImage.unsigned bit-for-bit
-#   6. Verify out/shardkey.img contains /EFI/BOOT/BOOTX64.EFI & /shardkey/bzImage == out/bzImage
+#   6. Verify out/symbolon.img contains /EFI/BOOT/BOOTX64.EFI & /symbolon/bzImage == out/bzImage
 #   7. Print certificate SHA-256 fingerprint for out-of-band confirmation
 
 set -euo pipefail
@@ -19,15 +19,15 @@ source "${ROOT_DIR}/config/versions.env"
 
 BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build}"
 OUT_DIR="${OUT_DIR:-${ROOT_DIR}/out}"
-KEYS_DIR="${SHARDKEY_KEYS_DIR:-${ROOT_DIR}/keys}"
-CERT="${KEYS_DIR}/shardkey-signing.crt"
-CER="${KEYS_DIR}/shardkey-signing.cer"
+KEYS_DIR="${SYMBOLON_KEYS_DIR:-${ROOT_DIR}/keys}"
+CERT="${KEYS_DIR}/symbolon-signing.crt"
+CER="${KEYS_DIR}/symbolon-signing.cer"
 FP_FILE="${KEYS_DIR}/FINGERPRINT.txt"
 
 SIGNED_KERNEL="${OUT_DIR}/bzImage"
 UNSIGNED_KERNEL="${OUT_DIR}/bzImage.unsigned"
 INITRAMFS_IMG="${OUT_DIR}/initramfs.cpio.gz"
-USB_IMG="${OUT_DIR}/shardkey.img"
+USB_IMG="${OUT_DIR}/symbolon.img"
 SUMS_FILE="${OUT_DIR}/SHA256SUMS"
 SIG_FILE="${OUT_DIR}/SHA256SUMS.sig"
 
@@ -48,7 +48,7 @@ for f in "${CERT}" "${CER}" "${FP_FILE}" "${SIGNED_KERNEL}" "${UNSIGNED_KERNEL}"
     [[ -r "${f}" ]] || die "missing required file: ${f}"
 done
 
-WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/shardkey-verify.XXXXXX")"
+WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/symbolon-verify.XXXXXX")"
 cleanup() {
     rm -rf "${WORK_DIR}"
 }
@@ -73,7 +73,7 @@ openssl dgst -sha256 \
     "${SUMS_FILE}" >/dev/null || die "SHA256SUMS signature verification FAILED"
 
 # 3. Verify SHA256SUMS contents and file hashes
-for expected in bzImage bzImage.unsigned shardkey.img initramfs.cpio.gz; do
+for expected in bzImage bzImage.unsigned symbolon.img initramfs.cpio.gz; do
     grep -Eq "^[0-9a-f]{64}  ${expected}$" "${SUMS_FILE}" || \
         die "SHA256SUMS is missing expected entry: ${expected}"
 done
@@ -96,7 +96,7 @@ if ! cmp -s "${UNSIGNED_KERNEL}" "${WORK_DIR}/bzImage.stripped"; then
     die "sbattach --remove did not reproduce ${UNSIGNED_KERNEL}"
 fi
 
-# 6. Verify out/shardkey.img contains the signed kernel cleanly
+# 6. Verify out/symbolon.img contains the signed kernel cleanly
 PART_OFFSET="$(python3 - "${USB_IMG}" <<'PY'
 import struct, sys
 with open(sys.argv[1], "rb") as f:
@@ -114,11 +114,11 @@ PY
 
 export MTOOLS_SKIP_CHECK=1
 mcopy -n -i "${USB_IMG}@@${PART_OFFSET}" ::/EFI/BOOT/BOOTX64.EFI "${WORK_DIR}/img_bootx64.efi"
-mcopy -n -i "${USB_IMG}@@${PART_OFFSET}" ::/shardkey/bzImage "${WORK_DIR}/img_bzImage"
+mcopy -n -i "${USB_IMG}@@${PART_OFFSET}" ::/symbolon/bzImage "${WORK_DIR}/img_bzImage"
 cmp -s "${SIGNED_KERNEL}" "${WORK_DIR}/img_bootx64.efi" || \
     die "${USB_IMG} ::/EFI/BOOT/BOOTX64.EFI does not match ${SIGNED_KERNEL}"
 cmp -s "${SIGNED_KERNEL}" "${WORK_DIR}/img_bzImage" || \
-    die "${USB_IMG} ::/shardkey/bzImage does not match ${SIGNED_KERNEL}"
+    die "${USB_IMG} ::/symbolon/bzImage does not match ${SIGNED_KERNEL}"
 
 # 7. Print certificate fingerprint for manual verification
 log "ALL CHECKS PASSED."

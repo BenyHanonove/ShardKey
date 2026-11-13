@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define FP_DOMAIN_PREFIX "SHARDKEY-FP-V1"
+#define FP_DOMAIN_PREFIX "SYMBOLON-FP-V1"
 
 void share_fmt_hex_encode(const uint8_t *bytes, size_t len, char *out_hex)
 {
@@ -57,8 +57,8 @@ static int validate_rec_params(uint8_t threshold, uint8_t shares, uint8_t index)
 	return SHARE_FMT_OK;
 }
 
-int share_fmt_fingerprint(const uint8_t secret[SHARDKEY_SECRET_LEN],
-                          uint8_t out_fp[SHARDKEY_FINGERPRINT_LEN])
+int share_fmt_fingerprint(const uint8_t secret[SYMBOLON_SECRET_LEN],
+                          uint8_t out_fp[SYMBOLON_FINGERPRINT_LEN])
 {
 	if (secret == NULL || out_fp == NULL) {
 		return SHARE_FMT_ERR_ARG;
@@ -69,15 +69,15 @@ int share_fmt_fingerprint(const uint8_t secret[SHARDKEY_SECRET_LEN],
 
 	sha256_init(&ctx);
 	sha256_update(&ctx, FP_DOMAIN_PREFIX, strlen(FP_DOMAIN_PREFIX));
-	sha256_update(&ctx, secret, SHARDKEY_SECRET_LEN);
+	sha256_update(&ctx, secret, SYMBOLON_SECRET_LEN);
 	sha256_final(&ctx, digest);
 
-	memcpy(out_fp, digest, SHARDKEY_FINGERPRINT_LEN);
+	memcpy(out_fp, digest, SYMBOLON_FINGERPRINT_LEN);
 	secmem_zero(digest, sizeof(digest));
 	return SHARE_FMT_OK;
 }
 
-int share_fmt_encode(struct shardkey_share_record *rec,
+int share_fmt_encode(struct symbolon_share_record *rec,
                      char *out_buf,
                      size_t buf_cap,
                      size_t *out_len)
@@ -91,17 +91,17 @@ int share_fmt_encode(struct shardkey_share_record *rec,
 		return vrc;
 	}
 
-	char set_id_hex[SHARDKEY_SET_ID_LEN * 2u + 1u];
-	char fp_hex[SHARDKEY_FINGERPRINT_LEN * 2u + 1u];
-	char data_hex[SHARDKEY_SECRET_LEN * 2u + 1u];
-	char check_hex[SHARDKEY_CHECK_LEN * 2u + 1u];
+	char set_id_hex[SYMBOLON_SET_ID_LEN * 2u + 1u];
+	char fp_hex[SYMBOLON_FINGERPRINT_LEN * 2u + 1u];
+	char data_hex[SYMBOLON_SECRET_LEN * 2u + 1u];
+	char check_hex[SYMBOLON_CHECK_LEN * 2u + 1u];
 
-	share_fmt_hex_encode(rec->set_id, SHARDKEY_SET_ID_LEN, set_id_hex);
-	share_fmt_hex_encode(rec->fingerprint, SHARDKEY_FINGERPRINT_LEN, fp_hex);
-	share_fmt_hex_encode(rec->data, SHARDKEY_SECRET_LEN, data_hex);
+	share_fmt_hex_encode(rec->set_id, SYMBOLON_SET_ID_LEN, set_id_hex);
+	share_fmt_hex_encode(rec->fingerprint, SYMBOLON_FINGERPRINT_LEN, fp_hex);
+	share_fmt_hex_encode(rec->data, SYMBOLON_SECRET_LEN, data_hex);
 
 	int body_len = snprintf(out_buf, buf_cap,
-		"SHARDKEY-SHARE-V1\n"
+		"SYMBOLON-SHARE-V1\n"
 		"scheme: shamir-gf256\n"
 		"threshold: %u\n"
 		"shares: %u\n"
@@ -124,10 +124,10 @@ int share_fmt_encode(struct shardkey_share_record *rec,
 
 	uint8_t digest[SHA256_DIGEST_SIZE];
 	sha256_oneshot(out_buf, (size_t)body_len, digest);
-	memcpy(rec->check, digest, SHARDKEY_CHECK_LEN);
+	memcpy(rec->check, digest, SYMBOLON_CHECK_LEN);
 	secmem_zero(digest, sizeof(digest));
 
-	share_fmt_hex_encode(rec->check, SHARDKEY_CHECK_LEN, check_hex);
+	share_fmt_hex_encode(rec->check, SYMBOLON_CHECK_LEN, check_hex);
 
 	int tail_len = snprintf(out_buf + body_len, buf_cap - (size_t)body_len,
 		"check: %s\n", check_hex);
@@ -204,13 +204,13 @@ static bool strip_prefix(const char *line, size_t line_len,
 
 int share_fmt_parse(const char *buf,
                     size_t len,
-                    struct shardkey_share_record *out_rec)
+                    struct symbolon_share_record *out_rec)
 {
 	if (buf == NULL || out_rec == NULL || len == 0u) {
 		return SHARE_FMT_ERR_ARG;
 	}
 
-	struct shardkey_share_record tmp;
+	struct symbolon_share_record tmp;
 	memset(&tmp, 0, sizeof(tmp));
 
 	size_t pos = 0u;
@@ -219,12 +219,12 @@ int share_fmt_parse(const char *buf,
 	const char *val = NULL;
 	size_t val_len = 0u;
 
-	/* Line 1: SHARDKEY-SHARE-V1 */
+	/* Line 1: SYMBOLON-SHARE-V1 */
 	if (!next_lf_line(buf, len, &pos, &line, &line_len)) {
 		return SHARE_FMT_ERR_SYNTAX;
 	}
-	if (line_len != strlen("SHARDKEY-SHARE-V1") ||
-	    memcmp(line, "SHARDKEY-SHARE-V1", line_len) != 0) {
+	if (line_len != strlen("SYMBOLON-SHARE-V1") ||
+	    memcmp(line, "SYMBOLON-SHARE-V1", line_len) != 0) {
 		return SHARE_FMT_ERR_MAGIC;
 	}
 
@@ -271,7 +271,7 @@ int share_fmt_parse(const char *buf,
 	    !strip_prefix(line, line_len, "set-id: ", &val, &val_len)) {
 		return SHARE_FMT_ERR_SYNTAX;
 	}
-	if (hex_decode_lower(val, val_len, tmp.set_id, SHARDKEY_SET_ID_LEN) != 0) {
+	if (hex_decode_lower(val, val_len, tmp.set_id, SYMBOLON_SET_ID_LEN) != 0) {
 		return SHARE_FMT_ERR_HEX;
 	}
 
@@ -280,7 +280,7 @@ int share_fmt_parse(const char *buf,
 	    !strip_prefix(line, line_len, "fingerprint: ", &val, &val_len)) {
 		return SHARE_FMT_ERR_SYNTAX;
 	}
-	if (hex_decode_lower(val, val_len, tmp.fingerprint, SHARDKEY_FINGERPRINT_LEN) != 0) {
+	if (hex_decode_lower(val, val_len, tmp.fingerprint, SYMBOLON_FINGERPRINT_LEN) != 0) {
 		return SHARE_FMT_ERR_HEX;
 	}
 
@@ -289,7 +289,7 @@ int share_fmt_parse(const char *buf,
 	    !strip_prefix(line, line_len, "data: ", &val, &val_len)) {
 		return SHARE_FMT_ERR_SYNTAX;
 	}
-	if (hex_decode_lower(val, val_len, tmp.data, SHARDKEY_SECRET_LEN) != 0) {
+	if (hex_decode_lower(val, val_len, tmp.data, SYMBOLON_SECRET_LEN) != 0) {
 		secmem_zero(&tmp, sizeof(tmp));
 		return SHARE_FMT_ERR_HEX;
 	}
@@ -303,7 +303,7 @@ int share_fmt_parse(const char *buf,
 		secmem_zero(&tmp, sizeof(tmp));
 		return SHARE_FMT_ERR_SYNTAX;
 	}
-	if (hex_decode_lower(val, val_len, tmp.check, SHARDKEY_CHECK_LEN) != 0) {
+	if (hex_decode_lower(val, val_len, tmp.check, SYMBOLON_CHECK_LEN) != 0) {
 		secmem_zero(&tmp, sizeof(tmp));
 		return SHARE_FMT_ERR_HEX;
 	}
@@ -316,7 +316,7 @@ int share_fmt_parse(const char *buf,
 
 	uint8_t digest[SHA256_DIGEST_SIZE];
 	sha256_oneshot(buf, check_span_len, digest);
-	int chk_ok = secmem_ct_equal(digest, tmp.check, SHARDKEY_CHECK_LEN);
+	int chk_ok = secmem_ct_equal(digest, tmp.check, SYMBOLON_CHECK_LEN);
 	secmem_zero(digest, sizeof(digest));
 
 	if (!chk_ok) {
@@ -329,7 +329,7 @@ int share_fmt_parse(const char *buf,
 	return SHARE_FMT_OK;
 }
 
-int share_fmt_validate_set(const struct shardkey_share_record *recs, size_t count)
+int share_fmt_validate_set(const struct symbolon_share_record *recs, size_t count)
 {
 	if (recs == NULL || count == 0u) {
 		return SHARE_FMT_ERR_ARG;
@@ -343,8 +343,8 @@ int share_fmt_validate_set(const struct shardkey_share_record *recs, size_t coun
 		if (i > 0u) {
 			if (recs[i].threshold != recs[0].threshold ||
 			    recs[i].shares != recs[0].shares ||
-			    memcmp(recs[i].set_id, recs[0].set_id, SHARDKEY_SET_ID_LEN) != 0 ||
-			    memcmp(recs[i].fingerprint, recs[0].fingerprint, SHARDKEY_FINGERPRINT_LEN) != 0) {
+			    memcmp(recs[i].set_id, recs[0].set_id, SYMBOLON_SET_ID_LEN) != 0 ||
+			    memcmp(recs[i].fingerprint, recs[0].fingerprint, SYMBOLON_FINGERPRINT_LEN) != 0) {
 				return SHARE_FMT_ERR_SET_MISMATCH;
 			}
 		}
@@ -365,10 +365,10 @@ int share_fmt_validate_set(const struct shardkey_share_record *recs, size_t coun
 int share_fmt_filename(uint8_t index, uint8_t shares, char *out_name, size_t cap)
 {
 	if (out_name == NULL || cap < 32u || index < 1u || index > shares ||
-	    shares < SHARDKEY_MIN_SHARES || shares > SHARDKEY_MAX_SHARES) {
+	    shares < SYMBOLON_MIN_SHARES || shares > SYMBOLON_MAX_SHARES) {
 		return SHARE_FMT_ERR_ARG;
 	}
-	int n = snprintf(out_name, cap, "shardkey-share-%u-of-%u.txt",
+	int n = snprintf(out_name, cap, "symbolon-share-%u-of-%u.txt",
 	                 (unsigned int)index, (unsigned int)shares);
 	if (n <= 0 || (size_t)n >= cap) {
 		return SHARE_FMT_ERR_ARG;
@@ -379,8 +379,8 @@ int share_fmt_filename(uint8_t index, uint8_t shares, char *out_name, size_t cap
 int share_fmt_readme(uint8_t index,
                      uint8_t threshold,
                      uint8_t shares,
-                     const uint8_t set_id[SHARDKEY_SET_ID_LEN],
-                     const uint8_t fingerprint[SHARDKEY_FINGERPRINT_LEN],
+                     const uint8_t set_id[SYMBOLON_SET_ID_LEN],
+                     const uint8_t fingerprint[SYMBOLON_FINGERPRINT_LEN],
                      char *out_buf,
                      size_t cap,
                      size_t *out_len)
@@ -393,25 +393,25 @@ int share_fmt_readme(uint8_t index,
 		return vrc;
 	}
 
-	char set_id_hex[SHARDKEY_SET_ID_LEN * 2u + 1u];
-	char fp_hex[SHARDKEY_FINGERPRINT_LEN * 2u + 1u];
-	share_fmt_hex_encode(set_id, SHARDKEY_SET_ID_LEN, set_id_hex);
-	share_fmt_hex_encode(fingerprint, SHARDKEY_FINGERPRINT_LEN, fp_hex);
+	char set_id_hex[SYMBOLON_SET_ID_LEN * 2u + 1u];
+	char fp_hex[SYMBOLON_FINGERPRINT_LEN * 2u + 1u];
+	share_fmt_hex_encode(set_id, SYMBOLON_SET_ID_LEN, set_id_hex);
+	share_fmt_hex_encode(fingerprint, SYMBOLON_FINGERPRINT_LEN, fp_hex);
 
 	int n = snprintf(out_buf, cap,
-		"ShardKey Secret Share Drive\n"
+		"Symbolon Secret Share Drive\n"
 		"===========================\n"
 		"\n"
 		"This USB flash drive holds Share %u of %u (threshold: %u required).\n"
 		"Set ID:             %s\n"
 		"Secret fingerprint: %s\n"
-		"Share file:         shardkey-share-%u-of-%u.txt\n"
+		"Share file:         symbolon-share-%u-of-%u.txt\n"
 		"\n"
 		"IMPORTANT:\n"
 		"- Keep this drive in a secure location separate from the other shares.\n"
 		"- Any %u shares from set %s can reconstruct the secret.\n"
 		"- Fewer than %u shares reveal no information about the secret.\n"
-		"- Do not modify or rename shardkey-share-%u-of-%u.txt.\n",
+		"- Do not modify or rename symbolon-share-%u-of-%u.txt.\n",
 		(unsigned int)index, (unsigned int)shares, (unsigned int)threshold,
 		set_id_hex,
 		fp_hex,

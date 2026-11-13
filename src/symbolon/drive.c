@@ -634,7 +634,7 @@ int drive_verify_files_in_dir(const char *mount_dir,
 	int eq = secmem_ct_equal(verify_buf, expected_content, expected_len);
 
 	/* Also parse and verify structure + SHA-256 check field */
-	struct shardkey_share_record parsed;
+	struct symbolon_share_record parsed;
 	int prc = share_fmt_parse(verify_buf, off, &parsed);
 	bool meta_ok = (prc == SHARE_FMT_OK &&
 	                parsed.index == index &&
@@ -653,15 +653,15 @@ enum drive_existing_status drive_inspect_existing_dir(
 	const char *mount_dir,
 	uint8_t current_idx,
 	uint8_t total_shares,
-	const uint8_t set_id[SHARDKEY_SET_ID_LEN])
+	const uint8_t set_id[SYMBOLON_SET_ID_LEN])
 {
 	if (mount_dir == NULL) {
 		return DRIVE_EXISTING_NONE;
 	}
 
-	/* 1. Check for ShardKey boot stick files (docs/PLAN.md §4 Phase 7) */
+	/* 1. Check for Symbolon boot stick files (docs/PLAN.md §4 Phase 7) */
 	static const char *const boot_markers[] = {
-		"shardkey/bzImage",
+		"symbolon/bzImage",
 		"syslinux.cfg",
 		"syslinux/syslinux.cfg",
 		"SHA256SUMS.sig",
@@ -681,7 +681,7 @@ enum drive_existing_status drive_inspect_existing_dir(
 		return DRIVE_EXISTING_NONE;
 	}
 
-	struct shardkey_secpool *pool = secmem_pool();
+	struct symbolon_secpool *pool = secmem_pool();
 	char *buf = pool->verify_file_buf;
 	size_t cap = sizeof(pool->verify_file_buf);
 	bool found_earlier = false;
@@ -716,9 +716,9 @@ enum drive_existing_status drive_inspect_existing_dir(
 		}
 		close(fd);
 		if (off > 0u) {
-			struct shardkey_share_record rec;
+			struct symbolon_share_record rec;
 			if (share_fmt_parse(buf, off, &rec) == SHARE_FMT_OK) {
-				if (secmem_ct_equal(rec.set_id, set_id, SHARDKEY_SET_ID_LEN)) {
+				if (secmem_ct_equal(rec.set_id, set_id, SYMBOLON_SET_ID_LEN)) {
 					found_earlier = true;
 				}
 			}

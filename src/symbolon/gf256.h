@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-#ifndef SHARDKEY_GF256_H
-#define SHARDKEY_GF256_H
+#ifndef SYMBOLON_GF256_H
+#define SYMBOLON_GF256_H
 
 #include <stdint.h>
 
@@ -16,4 +16,4 @@ uint8_t gf256_mul(uint8_t a, uint8_t b);
 uint8_t gf256_inv(uint8_t a);
 uint8_t gf256_div(uint8_t a, uint8_t b);
 
-#endif /* SHARDKEY_GF256_H */
+#endif /* SYMBOLON_GF256_H */

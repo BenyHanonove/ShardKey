@@ -1,9 +1,9 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# ShardKey PID 1 /init (BusyBox ash).
+# Symbolon PID 1 /init (BusyBox ash).
 # Mounts core pseudo-filesystems, silences kernel console noise, waits until
-# no USB disks remain attached, runs /bin/shardkey, and always clears caches
+# no USB disks remain attached, runs /bin/symbolon, and always clears caches
 # and powers off the machine without ever dropping to a shell.
 
 PATH=/bin:/sbin
@@ -79,9 +79,9 @@ cleanup_and_poweroff() {
 
     echo ""
     if [ "${code}" -eq 0 ]; then
-        echo "ShardKey ceremony completed (exit 0). Caches cleared; powering off."
+        echo "Symbolon ceremony completed (exit 0). Caches cleared; powering off."
     else
-        echo "ShardKey exited with status ${code}. Caches cleared; powering off."
+        echo "Symbolon exited with status ${code}. Caches cleared; powering off."
     fi
 
     sleep 1
@@ -153,11 +153,11 @@ if [ -n "${usb_disks}" ]; then
     echo "All USB drives removed."
 fi
 
-if [ ! -x /bin/shardkey ]; then
-    echo "ERROR: /bin/shardkey not found or not executable."
+if [ ! -x /bin/symbolon ]; then
+    echo "ERROR: /bin/symbolon not found or not executable."
     cleanup_and_poweroff 127
 fi
 
-/bin/shardkey
+/bin/symbolon
 status=$?
 cleanup_and_poweroff "${status}"

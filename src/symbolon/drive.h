@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-#ifndef SHARDKEY_DRIVE_H
-#define SHARDKEY_DRIVE_H
+#ifndef SYMBOLON_DRIVE_H
+#define SYMBOLON_DRIVE_H
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -9,7 +9,7 @@
 #define DRIVE_DEFAULT_SYS_BLOCK  "/sys/block"
 #define DRIVE_DEFAULT_DEV_DIR    "/dev"
 #define DRIVE_DEFAULT_MOUNT_DIR  "/mnt"
-#define DRIVE_PREP_SCRIPT_PATH   "/lib/shardkey/prep-drive.sh"
+#define DRIVE_PREP_SCRIPT_PATH   "/lib/symbolon/prep-drive.sh"
 
 struct drive_info {
 	char     name[32];      /* e.g. "sda" */
@@ -67,7 +67,7 @@ int drive_wait_removed_name(const char *sys_block_dir,
                             unsigned int poll_ms);
 
 /*
- * Run prep_script (typically /lib/shardkey/prep-drive.sh) on dev_node via fork+execv.
+ * Run prep_script (typically /lib/symbolon/prep-drive.sh) on dev_node via fork+execv.
  * Returns 0 if the script exits with status 0, -1 otherwise.
  */
 int drive_run_prep_script(const char *prep_script, const char *dev_node);
@@ -114,7 +114,7 @@ int drive_verify_files_in_dir(const char *mount_dir,
 
 /*
  * Inspect an already-mounted drive directory (mount_dir) before erasing:
- *   - returns DRIVE_EXISTING_BOOT_STICK if ShardKey boot stick markers are present
+ *   - returns DRIVE_EXISTING_BOOT_STICK if Symbolon boot stick markers are present
  *   - returns DRIVE_EXISTING_EARLIER_SHARE if a valid share 1..(current_idx-1)
  *     from the current ceremony (matching set_id) is present
  *   - returns DRIVE_EXISTING_NONE otherwise
@@ -123,6 +123,6 @@ enum drive_existing_status drive_inspect_existing_dir(
 	const char *mount_dir,
 	uint8_t current_idx,
 	uint8_t total_shares,
-	const uint8_t set_id[SHARDKEY_SET_ID_LEN]);
+	const uint8_t set_id[SYMBOLON_SET_ID_LEN]);
 
-#endif /* SHARDKEY_DRIVE_H */
+#endif /* SYMBOLON_DRIVE_H */

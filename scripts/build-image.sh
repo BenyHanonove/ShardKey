@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 # Build a hybrid BIOS (Syslinux) + UEFI (EFI_STUB) bootable disk image in out/.
-# If a signed kernel exists at out/bzImage, produces out/shardkey.img using the
+# If a signed kernel exists at out/bzImage, produces out/symbolon.img using the
 # signed kernel (as required by docs/PLAN.md §4 Phase 7 & docs/SIGNING.md).
 # If only out/bzImage.unsigned exists (prior to `make sign`), skips writing
-# out/shardkey.img so an unsigned image is never mistaken for a signed release.
+# out/symbolon.img so an unsigned image is never mistaken for a signed release.
 #
 # Usage:
 #   scripts/build-image.sh [--force-unsigned <out-img-path>]
@@ -45,10 +45,10 @@ if [[ -n "${FORCE_UNSIGNED_OUT}" ]]; then
     IMG_OUT="${FORCE_UNSIGNED_OUT}"
 elif [[ -f "${SIGNED_KERNEL}" ]]; then
     KERNEL_SRC="${SIGNED_KERNEL}"
-    IMG_OUT="${OUT_DIR}/shardkey.img"
+    IMG_OUT="${OUT_DIR}/symbolon.img"
 elif [[ -f "${UNSIGNED_KERNEL}" ]]; then
     log "Unsigned kernel ready at ${UNSIGNED_KERNEL}."
-    log "Skipping out/shardkey.img until kernel is signed (run 'make sign KEY=/path/to/shardkey-signing.key')."
+    log "Skipping out/symbolon.img until kernel is signed (run 'make sign KEY=/path/to/symbolon-signing.key')."
     exit 0
 else
     die "neither ${SIGNED_KERNEL} nor ${UNSIGNED_KERNEL} exists; run 'make kernel' first."
@@ -63,7 +63,7 @@ done
 
 mkdir -p "$(dirname "${IMG_OUT}")"
 
-WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/shardkey-image.XXXXXX")"
+WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/symbolon-image.XXXXXX")"
 cleanup() {
     rm -rf "${WORK_DIR}"
 }
@@ -85,17 +85,17 @@ printf 'label: dos\nlabel-id: 0x53485244\nunit: sectors\n\n%u,,c,*\n' "${START_S
     sfdisk -q "${TMP_IMG}" >/dev/null
 dd if="${SYSLINUX_MBR}" of="${TMP_IMG}" bs=440 count=1 conv=notrunc status=none
 
-mkfs.vfat -F 32 -n SHARDKEY -i 53484152 --invariant -C "${PART_IMG}" "${PART_BLOCKS}" >/dev/null
+mkfs.vfat -F 32 -n SYMBOLON -i 53484152 --invariant -C "${PART_IMG}" "${PART_BLOCKS}" >/dev/null
 dd if="${PART_IMG}" of="${TMP_IMG}" bs=512 seek="${START_SECTOR}" conv=notrunc status=none
 rm -f "${PART_IMG}"
 
 cat >"${CFG_FILE}" <<'EOF'
-DEFAULT shardkey
+DEFAULT symbolon
 PROMPT 0
 TIMEOUT 0
 
-LABEL shardkey
-    LINUX /shardkey/bzImage
+LABEL symbolon
+    LINUX /symbolon/bzImage
 EOF
 
 cp -f "${KERNEL_SRC}" "${KERNEL_COPY}"
@@ -104,10 +104,10 @@ touch -h -d "@${SOURCE_DATE_EPOCH}" "${CFG_FILE}" "${KERNEL_COPY}"
 MTOOLS_IMG="${TMP_IMG}@@${PART_OFFSET}"
 export MTOOLS_SKIP_CHECK=1
 
-mmd -i "${MTOOLS_IMG}" ::/EFI ::/EFI/BOOT ::/shardkey ::/syslinux
+mmd -i "${MTOOLS_IMG}" ::/EFI ::/EFI/BOOT ::/symbolon ::/syslinux
 syslinux --offset "${PART_OFFSET}" -d /syslinux -i "${TMP_IMG}"
 mcopy -m -i "${MTOOLS_IMG}" "${KERNEL_COPY}" ::/EFI/BOOT/BOOTX64.EFI
-mcopy -m -i "${MTOOLS_IMG}" "${KERNEL_COPY}" ::/shardkey/bzImage
+mcopy -m -i "${MTOOLS_IMG}" "${KERNEL_COPY}" ::/symbolon/bzImage
 mcopy -m -i "${MTOOLS_IMG}" "${CFG_FILE}" ::/syslinux/syslinux.cfg
 
 mv -f "${TMP_IMG}" "${IMG_OUT}"

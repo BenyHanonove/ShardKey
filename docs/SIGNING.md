@@ -1,4 +1,4 @@
-# ShardKey — Signing and Verifying the Image
+# Symbolon — Signing and Verifying the Image
 
 **Goal:** be able to prove that the image booted on the ceremony machine is exactly
 the one we built from this repository, and that nobody changed it on the way.
@@ -39,11 +39,11 @@ it likes. The check must be done by something **outside** the image: the build m
 | Number of keys | **One** key pair for both jobs | Simpler to protect one offline key than two. Deliberate trade-off |
 
 Files in the repository (`keys/`) — **public only**:
-- `keys/shardkey-signing.crt` — certificate (PEM) used by `make verify` and `sbverify`
-- `keys/shardkey-signing.cer` — same certificate in DER form, for enrolling in firmware
+- `keys/symbolon-signing.crt` — certificate (PEM) used by `make verify` and `sbverify`
+- `keys/symbolon-signing.cer` — same certificate in DER form, for enrolling in firmware
 - `keys/FINGERPRINT.txt` — SHA-256 fingerprint of the certificate, also printed on paper
 
-The private key (`shardkey-signing.key`) is **never** committed and never stored on the
+The private key (`symbolon-signing.key`) is **never** committed and never stored on the
 build machine.
 
 ## 4. Steps
@@ -57,7 +57,7 @@ scripts/gen-signing-key.sh /media/keyusb
 ```
 
 What it does: generates the RSA-2048 key + self-signed certificate (valid 10 years,
-subject `CN=ShardKey Signing`), encrypts the private key with a passphrase, writes it
+subject `CN=Symbolon Signing`), encrypts the private key with a passphrase, writes it
 to the given USB drive, and writes the public `.crt`, `.cer`, and fingerprint into
 `keys/`. Make **two** copies of the key drive and store them in separate safe places.
 Write the fingerprint on paper.
@@ -73,13 +73,13 @@ make                      # builds out/bzImage.unsigned and the rest
 ```
 
 ```bash
-make sign KEY=/media/keyusb/shardkey-signing.key
+make sign KEY=/media/keyusb/symbolon-signing.key
 ```
 
 What it does:
 1. `sbsign` → `out/bzImage` (the kernel with its Secure Boot signature embedded).
 2. Writes `out/SHA256SUMS` with hashes of `bzImage`, `bzImage.unsigned`,
-   `shardkey.img`, `initramfs.cpio.gz`.
+   `symbolon.img`, `initramfs.cpio.gz`.
 3. `openssl dgst -sha256 -sign` → `out/SHA256SUMS.sig`.
 4. Unplug the key drive.
 
@@ -90,9 +90,9 @@ make verify
 ```
 
 What it does:
-1. `openssl dgst -sha256 -verify` checks `SHA256SUMS.sig` against `keys/shardkey-signing.crt`.
+1. `openssl dgst -sha256 -verify` checks `SHA256SUMS.sig` against `keys/symbolon-signing.crt`.
 2. `sha256sum -c SHA256SUMS` checks every file.
-3. `sbverify --cert keys/shardkey-signing.crt out/bzImage` checks the kernel signature.
+3. `sbverify --cert keys/symbolon-signing.crt out/bzImage` checks the kernel signature.
 4. Prints the certificate fingerprint — compare it with the one on paper.
 
 After writing the boot stick, `make usb` reads the stick back and checks it against
@@ -102,12 +102,12 @@ After writing the boot stick, `make usb` reads the stick back and checks it agai
 
 Menus differ between vendors; the steps are roughly:
 
-1. Copy `keys/shardkey-signing.cer` to a FAT32 USB drive.
+1. Copy `keys/symbolon-signing.cer` to a FAT32 USB drive.
 2. Enter firmware setup → **Secure Boot** → set mode to **Custom**.
-3. **Key Management → db → Append / Enroll from file** → pick `shardkey-signing.cer`.
+3. **Key Management → db → Append / Enroll from file** → pick `symbolon-signing.cer`.
 4. **Recommended for a dedicated ceremony machine:** remove the other entries from `db`
-   (Microsoft keys), so this machine can boot **only** ShardKey. Otherwise any
-   Microsoft-signed system (e.g. another live USB pretending to be ShardKey) could still
+   (Microsoft keys), so this machine can boot **only** Symbolon. Otherwise any
+   Microsoft-signed system (e.g. another live USB pretending to be Symbolon) could still
    boot on it.
 5. Turn **Secure Boot on**, save, reboot.
 6. **Test it:** boot an unsigned image (`out/bzImage.unsigned` on a test stick) — the

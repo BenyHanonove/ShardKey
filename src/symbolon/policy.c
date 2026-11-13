@@ -45,7 +45,7 @@ static int parse_nonneg_int(const char *start, size_t len, int *out_val)
 
 uint8_t policy_majority(uint8_t n)
 {
-	if (n < SHARDKEY_MIN_SHARES || n > SHARDKEY_MAX_SHARES) {
+	if (n < SYMBOLON_MIN_SHARES || n > SYMBOLON_MAX_SHARES) {
 		return 0u;
 	}
 	return (uint8_t)((n / 2u) + 1u);
@@ -53,7 +53,7 @@ uint8_t policy_majority(uint8_t n)
 
 enum policy_result policy_validate(int n, int k)
 {
-	if (n < (int)SHARDKEY_MIN_SHARES || n > (int)SHARDKEY_MAX_SHARES) {
+	if (n < (int)SYMBOLON_MIN_SHARES || n > (int)SYMBOLON_MAX_SHARES) {
 		return POLICY_ERR_N_OUT_OF_RANGE;
 	}
 	uint8_t maj = policy_majority((uint8_t)n);
@@ -83,7 +83,7 @@ enum policy_result policy_parse_n(const char *line, uint8_t *out_n)
 	if (parse_nonneg_int(start, len, &val) != 0) {
 		return POLICY_ERR_PARSE;
 	}
-	if (val < (int)SHARDKEY_MIN_SHARES || val > (int)SHARDKEY_MAX_SHARES) {
+	if (val < (int)SYMBOLON_MIN_SHARES || val > (int)SYMBOLON_MAX_SHARES) {
 		return POLICY_ERR_N_OUT_OF_RANGE;
 	}
 
@@ -96,7 +96,7 @@ enum policy_result policy_parse_k(const char *line, uint8_t n, uint8_t *out_k)
 	if (line == NULL || out_k == NULL) {
 		return POLICY_ERR_PARSE;
 	}
-	if (n < SHARDKEY_MIN_SHARES || n > SHARDKEY_MAX_SHARES) {
+	if (n < SYMBOLON_MIN_SHARES || n > SYMBOLON_MAX_SHARES) {
 		return POLICY_ERR_N_OUT_OF_RANGE;
 	}
 

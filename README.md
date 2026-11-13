@@ -1,4 +1,12 @@
-# ShardKey
+<p align="center">
+  <img src="docs/logo.svg" width="120" alt="Symbolon logo: a round token broken in two halves that fit together">
+</p>
+
+# Symbolon
+
+> *symbolon* (Greek σύμβολον): a token broken into pieces and shared between parties.
+> Only the pieces put back together prove who you are. It is where the word *symbol*
+> comes from.
 
 **A single-purpose, air-gapped Linux system that generates a 256-bit secret, splits it
 into Shamir's Secret Shares, writes each share to its own USB flash drive, and then
@@ -11,7 +19,7 @@ wipes itself from memory and powers off.**
 
 ## What it is
 
-ShardKey is not a Linux distribution you install. It is one bootable image — a
+Symbolon is not a Linux distribution you install. It is one bootable image — a
 hand-configured Linux kernel with a tiny root filesystem built into it — that does
 exactly one job, one time, on a computer with no network:
 
@@ -25,7 +33,7 @@ exactly one job, one time, on a computer with no network:
 4. Generate a random 256-bit secret and split it into `n` shares, any `k` of which can
    rebuild it (Shamir's Secret Sharing over GF(2⁸)).
 5. Check, in RAM, that **every** combination of `k` shares rebuilds the original secret.
-6. For each share: the operator inserts a blank USB drive → ShardKey formats it, writes
+6. For each share: the operator inserts a blank USB drive → Symbolon formats it, writes
    the share, and asks the operator to **unplug and re-insert** the drive → reads it
    back and verifies it byte-for-byte → asks for the next drive.
 7. Zero every key buffer (`explicit_bzero`), and power the machine **off** (not reboot).
@@ -34,12 +42,12 @@ The secret itself is never written anywhere, never shown on screen, and never le
 the RAM of the ceremony process. Only the shares leave the machine, one per drive.
 
 **Out of scope:** rebuilding the secret from shares. That is a separate project.
-ShardKey only publishes the share file format ([docs/SHARE_FORMAT.md](docs/SHARE_FORMAT.md))
+Symbolon only publishes the share file format ([docs/SHARE_FORMAT.md](docs/SHARE_FORMAT.md))
 so a recovery tool can read it.
 
 ## Why build it this way
 
-| Goal | How ShardKey gets there |
+| Goal | How Symbolon gets there |
 |---|---|
 | No network, ever | The kernel is built **without the networking subsystem** (`CONFIG_NET=n`). There is no network stack to attack or misconfigure — not "disabled", absent. |
 | No trace on the host machine | No SATA, NVMe, or SD drivers are built in, so the internal disks are **invisible** to the system. Nothing can be written to them. There is no swap. |
@@ -47,7 +55,7 @@ so a recovery tool can read it.
 | No dynamic code | No loadable kernel modules (`CONFIG_MODULES=n`), no shared libraries (static musl binaries). |
 | Secrets stay in RAM and get wiped | `mlockall`, no core dumps, `explicit_bzero` on every buffer, kernel zeroes freed pages (`init_on_free=1`), then a full power-off. |
 | Works on old and new PCs | One kernel file boots both **UEFI** (EFI stub) and **legacy BIOS** (Syslinux). |
-| Proof the image wasn't changed | Every release is **signed** with an offline ShardKey key. Before writing the stick you check the signature; on UEFI machines **Secure Boot** refuses to boot an image we didn't sign. See [docs/SIGNING.md](docs/SIGNING.md). |
+| Proof the image wasn't changed | Every release is **signed** with an offline Symbolon key. Before writing the stick you check the signature; on UEFI machines **Secure Boot** refuses to boot an image we didn't sign. See [docs/SIGNING.md](docs/SIGNING.md). |
 | Randomness you don't have to trust blindly | Operator dice rolls + kernel randomness, mixed with SHA-256. |
 | A threshold that makes sense | `k` can never be lower than a majority of `n`. |
 | Repeatable builds | Every upstream version is pinned and signature-checked; build timestamps are fixed so the same inputs give the same image hash. |
@@ -60,9 +68,9 @@ so a recovery tool can read it.
  kernel.org LTS source ──┐                          ┌───────────── RAM only ─────────────┐
  BusyBox source ─────────┤  verify sigs + hashes    │ Linux kernel (no NET, no modules)  │
  musl (musl-gcc) ────────┤                          │  └ embedded initramfs:             │
- src/shardkey (C) ───────┘                          │     /init      (BusyBox sh, PID 1) │
+ src/symbolon (C) ───────┘                          │     /init      (BusyBox sh, PID 1) │
         │                                           │     /bin/busybox (static)          │
-        ▼                                           │     /bin/shardkey (static, C)      │
+        ▼                                           │     /bin/symbolon (static, C)      │
   bzImage (EFI stub + embedded initramfs) ──USB──▶  └────────────────────────────────────┘
   + syslinux (BIOS) on one boot stick                      │ writes 1 share per drive
                                                            ▼
@@ -72,7 +80,7 @@ so a recovery tool can read it.
 ## Repository layout (planned)
 
 ```
-ShardKey/
+Symbolon/
 ├── README.md                 ← you are here
 ├── docs/
 │   ├── PLAN.md               ← full implementation plan, phases, review of the original 11 steps
@@ -84,10 +92,10 @@ ShardKey/
 ├── keys/                     ← PUBLIC signing certificate / key only (never the private key)
 ├── config/
 │   ├── versions.env          ← pinned upstream versions + SHA-256 sums
-│   ├── kernel/shardkey.config    ← kernel config fragment (the "keep" list)
-│   ├── busybox/shardkey.config   ← BusyBox applet list
+│   ├── kernel/symbolon.config    ← kernel config fragment (the "keep" list)
+│   ├── busybox/symbolon.config   ← BusyBox applet list
 │   └── syslinux/syslinux.cfg
-├── src/shardkey/             ← the C ceremony program + unit tests
+├── src/symbolon/             ← the C ceremony program + unit tests
 ├── rootfs/                   ← /init and helper scripts
 ├── scripts/                  ← fetch, verify, build, make-usb, qemu-test
 └── Makefile
@@ -104,7 +112,7 @@ make fetch         # download + verify kernel, BusyBox, (musl via distro package
 ```
 
 ```bash
-make               # build shardkey, BusyBox, rootfs, kernel → out/bzImage
+make               # build symbolon, BusyBox, rootfs, kernel → out/bzImage
 ```
 
 ```bash
@@ -140,7 +148,7 @@ Then follow the operator runbook in [docs/PLAN.md § Ceremony runbook](docs/PLAN
 - **Signing key:** kept offline (separate USB drive or hardware token), used only for
   `make sign`. See [docs/SIGNING.md](docs/SIGNING.md).
 - **Ceremony machine:** any x86_64 PC, ≥ 512 MB RAM, a USB port and a keyboard.
-  Preferred: **UEFI with Secure Boot on and the ShardKey certificate enrolled**. Legacy
+  Preferred: **UEFI with Secure Boot on and the Symbolon certificate enrolled**. Legacy
   BIOS works but has no boot-time signature check (only the check before writing the
   stick). Remove or disconnect network cards / Wi-Fi if you can — the kernel cannot use
   them anyway.
@@ -149,13 +157,13 @@ Then follow the operator runbook in [docs/PLAN.md § Ceremony runbook](docs/PLAN
 
 ## Security notice
 
-ShardKey has **not** yet received an independent third-party security audit and
+Symbolon has **not** yet received an independent third-party security audit and
 still requires a real-hardware dry run on your ceremony machine before protecting real
 assets. Read [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) and the runbook in
 [docs/PLAN.md](docs/PLAN.md) (§5) before use.
 
 ## License
 
-ShardKey is licensed under the **GNU General Public License v2.0 only**
+Symbolon is licensed under the **GNU General Public License v2.0 only**
 (`GPL-2.0-only`), the same license as the Linux kernel and BusyBox it ships with.
 See [LICENSE](LICENSE).

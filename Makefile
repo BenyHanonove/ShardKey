@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# ShardKey top-level Makefile.
+# Symbolon top-level Makefile.
 # Out-of-tree intermediates go into build/; release artifacts go into out/.
 #
 # Reference: docs/PLAN.md (§4) and README.md (§Quick start).
@@ -38,11 +38,11 @@ fetch:
 tool:
 	@"$(SCRIPTS_DIR)/check-host.sh" --tool
 	@mkdir -p "$(BUILD_DIR)/tool"
-	@$(MAKE) -C "$(ROOT_DIR)/src/shardkey" BUILD_DIR="$(BUILD_DIR)/tool"
+	@$(MAKE) -C "$(ROOT_DIR)/src/symbolon" BUILD_DIR="$(BUILD_DIR)/tool"
 
 test-tool:
 	@mkdir -p "$(BUILD_DIR)/tool-test"
-	@$(MAKE) -C "$(ROOT_DIR)/src/shardkey" test BUILD_DIR="$(BUILD_DIR)/tool-test"
+	@$(MAKE) -C "$(ROOT_DIR)/src/symbolon" test BUILD_DIR="$(BUILD_DIR)/tool-test"
 
 busybox:
 	@"$(SCRIPTS_DIR)/check-host.sh" --busybox

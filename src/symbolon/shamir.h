@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-#ifndef SHARDKEY_SHAMIR_H
-#define SHARDKEY_SHAMIR_H
+#ifndef SYMBOLON_SHAMIR_H
+#define SYMBOLON_SHAMIR_H
 
 #include "secmem.h"
 #include <stdint.h>
@@ -15,11 +15,11 @@
  * out_shares[i][j] receives P_j(i + 1) for i = 0..n-1, j = 0..31.
  * Returns 0 on success, -1 on invalid parameters.
  */
-int shamir_split(const uint8_t secret[SHARDKEY_SECRET_LEN],
+int shamir_split(const uint8_t secret[SYMBOLON_SECRET_LEN],
                  const uint8_t *coeffs,
                  uint8_t k,
                  uint8_t n,
-                 uint8_t out_shares[][SHARDKEY_SECRET_LEN]);
+                 uint8_t out_shares[][SYMBOLON_SECRET_LEN]);
 
 /*
  * Reconstruct a 32-byte secret from k shares using Lagrange interpolation at x = 0.
@@ -30,18 +30,18 @@ int shamir_split(const uint8_t secret[SHARDKEY_SECRET_LEN],
  * Returns 0 on success, -1 on invalid parameters or duplicate x_coords.
  */
 int shamir_combine(const uint8_t *x_coords,
-                   const uint8_t y_shares[][SHARDKEY_SECRET_LEN],
+                   const uint8_t y_shares[][SYMBOLON_SECRET_LEN],
                    uint8_t k,
-                   uint8_t out_secret[SHARDKEY_SECRET_LEN]);
+                   uint8_t out_secret[SYMBOLON_SECRET_LEN]);
 
 /*
  * Exhaustively verify in RAM that EVERY k-subset of the n generated shares
  * reconstructs the original 32-byte secret (constant-time compared).
  * Returns 0 if all C(n, k) subsets match, -1 otherwise.
  */
-int shamir_verify_all_subsets(const uint8_t secret[SHARDKEY_SECRET_LEN],
-                              const uint8_t shares[][SHARDKEY_SECRET_LEN],
+int shamir_verify_all_subsets(const uint8_t secret[SYMBOLON_SECRET_LEN],
+                              const uint8_t shares[][SYMBOLON_SECRET_LEN],
                               uint8_t k,
                               uint8_t n);
 
-#endif /* SHARDKEY_SHAMIR_H */
+#endif /* SYMBOLON_SHAMIR_H */

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 # Build static BusyBox with musl-gcc and sanitized kernel headers from our
-# pinned LTS kernel, configured from 'make allnoconfig' + config/busybox/shardkey.config.
+# pinned LTS kernel, configured from 'make allnoconfig' + config/busybox/symbolon.config.
 # Outputs:
 #   build/busybox/busybox   (statically linked x86_64 binary)
 #   build/busybox/.config   (resolved BusyBox configuration)
@@ -50,7 +50,7 @@ export KBUILD_BUILD_HOST
 BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build}"
 SRC_DIR="${SRC_DIR:-${BUILD_DIR}/src}"
 BUSYBOX_BUILD_DIR="${BUSYBOX_BUILD_DIR:-${BUILD_DIR}/busybox}"
-BUSYBOX_CONFIG_FRAGMENT="${BUSYBOX_CONFIG_FRAGMENT:-${ROOT_DIR}/config/busybox/shardkey.config}"
+BUSYBOX_CONFIG_FRAGMENT="${BUSYBOX_CONFIG_FRAGMENT:-${ROOT_DIR}/config/busybox/symbolon.config}"
 
 if [[ ! -f "${BUSYBOX_CONFIG_FRAGMENT}" ]]; then
     die "BusyBox config fragment not found: ${BUSYBOX_CONFIG_FRAGMENT}"
@@ -190,7 +190,7 @@ fi
 info "Sanitized kernel headers ready at ${KHEADERS_INC}"
 
 # ─────────────────────────────────────────────────────────────
-# 3. Extract BusyBox and apply allnoconfig + shardkey.config
+# 3. Extract BusyBox and apply allnoconfig + symbolon.config
 # ─────────────────────────────────────────────────────────────
 BB_SRC_DIR="${BUSYBOX_BUILD_DIR}/busybox-${BUSYBOX_VERSION}"
 rm -rf "${BB_SRC_DIR}"

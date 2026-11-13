@@ -1,14 +1,14 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Prepare a target USB drive for a ShardKey share:
+# Prepare a target USB drive for a Symbolon share:
 #   - Refuse non-USB block devices (verify /sys/block/<dev> resolves under /usb)
 #   - Zero the first 1 MiB of the device
 #   - Write an MBR partition table with one primary FAT32 LBA (0x0c) partition
-#   - Format that partition with FAT32 and volume label 'SHARDKEY'
+#   - Format that partition with FAT32 and volume label 'SYMBOLON'
 #
 # Usage:
-#   /lib/shardkey/prep-drive.sh <dev_node>   (e.g. /dev/sda)
+#   /lib/symbolon/prep-drive.sh <dev_node>   (e.g. /dev/sda)
 
 set -eu
 
@@ -105,7 +105,7 @@ while [ ! -b "${PART}" ] && [ "${tries}" -lt 5 ]; do
 done
 [ -b "${PART}" ] || die "partition node did not appear after fdisk: ${PART}"
 
-if ! mkfs_out="$(mkfs.vfat -F 32 -n SHARDKEY "${PART}" 2>&1)"; then
+if ! mkfs_out="$(mkfs.vfat -F 32 -n SYMBOLON "${PART}" 2>&1)"; then
     die "mkfs.vfat failed on ${PART}: ${mkfs_out}"
 fi
 

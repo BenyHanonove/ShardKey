@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Configure, verify, and compile the ShardKey Linux LTS kernel with embedded
+# Configure, verify, and compile the Symbolon Linux LTS kernel with embedded
 # initramfs and locked command line.
 #
 # Modes:
@@ -71,7 +71,7 @@ SRC_DIR="${SRC_DIR:-${BUILD_DIR}/src}"
 OUT_DIR="${OUT_DIR:-${ROOT_DIR}/out}"
 KERNEL_ARCHIVE="${SRC_DIR}/${KERNEL_TARBALL}"
 INITRAMFS_LIST="${INITRAMFS_LIST:-${BUILD_DIR}/initramfs.list}"
-RELEASE_FRAGMENT="${RELEASE_FRAGMENT:-${ROOT_DIR}/config/kernel/shardkey.config}"
+RELEASE_FRAGMENT="${RELEASE_FRAGMENT:-${ROOT_DIR}/config/kernel/symbolon.config}"
 DEBUG_FRAGMENT="${DEBUG_FRAGMENT:-${ROOT_DIR}/config/kernel/debug-serial.config}"
 
 if [[ "${DEBUG_MODE}" -eq 1 ]]; then
@@ -136,7 +136,7 @@ fi
 rm -rf "${KBUILD_SUBDIR}"
 mkdir -p "${KBUILD_SUBDIR}" "$(dirname "${OUT_IMAGE}")"
 
-RESOLVED_FRAGMENT="${KBUILD_SUBDIR}/shardkey.allconfig"
+RESOLVED_FRAGMENT="${KBUILD_SUBDIR}/symbolon.allconfig"
 sed "s|__INITRAMFS_SOURCE__|${INITRAMFS_LIST}|g" "${RELEASE_FRAGMENT}" > "${RESOLVED_FRAGMENT}"
 if [[ "${DEBUG_MODE}" -eq 1 ]]; then
     printf '\n' >> "${RESOLVED_FRAGMENT}"

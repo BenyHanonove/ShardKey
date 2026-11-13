@@ -266,7 +266,7 @@ static void test_policy(void)
 
 static void test_dice_and_entropy(void)
 {
-	uint8_t dice_buf[SHARDKEY_MAX_DICE_ROLLS];
+	uint8_t dice_buf[SYMBOLON_MAX_DICE_ROLLS];
 	struct dice_collector dc;
 
 	TEST_ASSERT(entropy_dice_init(&dc, dice_buf, sizeof(dice_buf)) == 0, "dice_init");
@@ -299,21 +299,21 @@ static void test_dice_and_entropy(void)
 	            "Enter at 100 rolls must return DICE_DONE");
 
 	/* Mixing test: fixed inputs -> deterministic outputs; 1-bit change -> completely different */
-	uint8_t krnd1[SHARDKEY_KERNEL_RND_LEN];
-	uint8_t krnd2[SHARDKEY_KERNEL_RND_LEN];
-	for (size_t i = 0u; i < SHARDKEY_KERNEL_RND_LEN; i++) {
+	uint8_t krnd1[SYMBOLON_KERNEL_RND_LEN];
+	uint8_t krnd2[SYMBOLON_KERNEL_RND_LEN];
+	for (size_t i = 0u; i < SYMBOLON_KERNEL_RND_LEN; i++) {
 		krnd1[i] = (uint8_t)i;
 		krnd2[i] = (uint8_t)i;
 	}
 
-	uint8_t seed1[SHARDKEY_SEED_LEN];
-	uint8_t seed1_dup[SHARDKEY_SEED_LEN];
-	uint8_t seed2[SHARDKEY_SEED_LEN];
-	uint8_t seed3[SHARDKEY_SEED_LEN];
+	uint8_t seed1[SYMBOLON_SEED_LEN];
+	uint8_t seed1_dup[SYMBOLON_SEED_LEN];
+	uint8_t seed2[SYMBOLON_SEED_LEN];
+	uint8_t seed3[SYMBOLON_SEED_LEN];
 
 	TEST_ASSERT(entropy_mix_seed(krnd1, dice_buf, 100u, seed1) == 0, "mix_seed 1");
 	TEST_ASSERT(entropy_mix_seed(krnd1, dice_buf, 100u, seed1_dup) == 0, "mix_seed dup");
-	TEST_ASSERT(memcmp(seed1, seed1_dup, SHARDKEY_SEED_LEN) == 0, "deterministic mix_seed");
+	TEST_ASSERT(memcmp(seed1, seed1_dup, SYMBOLON_SEED_LEN) == 0, "deterministic mix_seed");
 
 	/* Reject < 100 dice rolls or out-of-range dice byte */
 	TEST_ASSERT(entropy_mix_seed(krnd1, dice_buf, 99u, seed2) == -1, "reject 99 rolls");
@@ -324,14 +324,14 @@ static void test_dice_and_entropy(void)
 	/* Flip one kernel random byte */
 	krnd2[31] ^= 0x01u;
 	TEST_ASSERT(entropy_mix_seed(krnd2, dice_buf, 100u, seed2) == 0, "mix_seed krnd diff");
-	TEST_ASSERT(memcmp(seed1, seed2, SHARDKEY_SEED_LEN) != 0,
+	TEST_ASSERT(memcmp(seed1, seed2, SYMBOLON_SEED_LEN) != 0,
 	            "1-bit change in kernel_rnd must change seed");
 
 	/* Change one dice roll */
 	uint8_t orig_roll = dice_buf[99];
 	dice_buf[99] = (orig_roll == '6') ? (uint8_t)'1' : (uint8_t)'6';
 	TEST_ASSERT(entropy_mix_seed(krnd1, dice_buf, 100u, seed3) == 0, "mix_seed dice diff");
-	TEST_ASSERT(memcmp(seed1, seed3, SHARDKEY_SEED_LEN) != 0,
+	TEST_ASSERT(memcmp(seed1, seed3, SYMBOLON_SEED_LEN) != 0,
 	            "1-roll change in dice must change seed");
 	dice_buf[99] = orig_roll;
 
@@ -339,7 +339,7 @@ static void test_dice_and_entropy(void)
 	char seed1_hex[65];
 	share_fmt_hex_encode(seed1, sizeof(seed1), seed1_hex);
 	TEST_ASSERT(strcmp(seed1_hex,
-	                   "d0cfaccf86b7b82c45ac62781a16dedc8269fdda525d8dc1a8701652b4b9c287") == 0,
+	                   "18adcc6b89ca415a68a97a3bede780cfd2af7a6960ba0d56b3d46d6ba399ed43") == 0,
 	            "seed1 KAT mismatch: %s", seed1_hex);
 
 	uint8_t sec1[32], sec2[32];
@@ -356,13 +356,13 @@ static void test_dice_and_entropy(void)
 	share_fmt_hex_encode(setid1, sizeof(setid1), setid1_hex);
 	share_fmt_hex_encode(coeffs1, sizeof(coeffs1), coeffs1_hex);
 	TEST_ASSERT(strcmp(sec1_hex,
-	                   "814f728bcab53cac2854fea3a90a1e0cf5faca78ebe84c8fa5e4b4e71092d958") == 0,
+	                   "abada4da539e4c6ab2f78edd8c31d4a5b8b49a35c3eca53dc01bef7f04fa17e6") == 0,
 	            "sec1 KAT mismatch: %s", sec1_hex);
-	TEST_ASSERT(strcmp(setid1_hex, "c29372774cf95c59") == 0,
+	TEST_ASSERT(strcmp(setid1_hex, "90479b37050271f4") == 0,
 	            "setid1 KAT mismatch: %s", setid1_hex);
 	TEST_ASSERT(strcmp(coeffs1_hex,
-	                   "e822f54fc5d05d62e84b58714eceff2742e09c552496523130b3b9d0ed5bc21"
-	                   "6a604089fe157484fa5647a958268099271a582a3886910cb71969815738925cb") == 0,
+	                   "3dd08a43ef07a478ef7d4c31669ef1ac9917216ce8532736c3c2d5f6c4597c5"
+	                   "a0a5153bdd38914ba05a54e44eaaf60189de86a3ba5da3476f64bfcb37d8feb76") == 0,
 	            "coeffs1 KAT mismatch: %s", coeffs1_hex);
 
 	TEST_ASSERT(memcmp(sec1, sec2, 32u) != 0, "secrets must differ");
@@ -388,13 +388,13 @@ static void test_shamir_and_share_vectors(void)
 	 *   a_{j,2}     = 0x40 + j
 	 *   set_id      = 7f3a9c0e5b21d846
 	 */
-	uint8_t secret[SHARDKEY_SECRET_LEN];
-	uint8_t coeffs[SHARDKEY_SECRET_LEN * 2u];
-	uint8_t set_id[SHARDKEY_SET_ID_LEN];
-	uint8_t fp[SHARDKEY_FINGERPRINT_LEN];
-	uint8_t shares[5][SHARDKEY_SECRET_LEN];
+	uint8_t secret[SYMBOLON_SECRET_LEN];
+	uint8_t coeffs[SYMBOLON_SECRET_LEN * 2u];
+	uint8_t set_id[SYMBOLON_SET_ID_LEN];
+	uint8_t fp[SYMBOLON_FINGERPRINT_LEN];
+	uint8_t shares[5][SYMBOLON_SECRET_LEN];
 
-	for (size_t j = 0u; j < SHARDKEY_SECRET_LEN; j++) {
+	for (size_t j = 0u; j < SYMBOLON_SECRET_LEN; j++) {
 		secret[j] = (uint8_t)j;
 		coeffs[j * 2u]      = (uint8_t)(0x20u + j);
 		coeffs[j * 2u + 1u] = (uint8_t)(0x40u + j);
@@ -404,7 +404,7 @@ static void test_shamir_and_share_vectors(void)
 	TEST_ASSERT(share_fmt_fingerprint(secret, fp) == SHARE_FMT_OK, "fingerprint");
 	char fp_hex[17];
 	share_fmt_hex_encode(fp, sizeof(fp), fp_hex);
-	TEST_ASSERT(strcmp(fp_hex, "2ff70fe219b3a5a5") == 0,
+	TEST_ASSERT(strcmp(fp_hex, "3a8cb0671aafe7c3") == 0,
 	            "unexpected fingerprint: %s", fp_hex);
 
 	TEST_ASSERT(shamir_split(secret, coeffs, 3u, 5u, shares) == 0, "shamir_split 3-of-5");
@@ -414,70 +414,70 @@ static void test_shamir_and_share_vectors(void)
 	            "shamir_verify_all_subsets 3-of-5");
 
 	static const char *expected_share_files[5] = {
-		"SHARDKEY-SHARE-V1\n"
+		"SYMBOLON-SHARE-V1\n"
 		"scheme: shamir-gf256\n"
 		"threshold: 3\n"
 		"shares: 5\n"
 		"index: 1\n"
 		"set-id: 7f3a9c0e5b21d846\n"
-		"fingerprint: 2ff70fe219b3a5a5\n"
+		"fingerprint: 3a8cb0671aafe7c3\n"
 		"data: 606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f\n"
-		"check: 2a2c1d24961824fd\n",
+		"check: a2f84e7614a81070\n",
 
-		"SHARDKEY-SHARE-V1\n"
+		"SYMBOLON-SHARE-V1\n"
 		"scheme: shamir-gf256\n"
 		"threshold: 3\n"
 		"shares: 5\n"
 		"index: 2\n"
 		"set-id: 7f3a9c0e5b21d846\n"
-		"fingerprint: 2ff70fe219b3a5a5\n"
+		"fingerprint: 3a8cb0671aafe7c3\n"
 		"data: 5b5c55524740494e63646d6a7f7871762b2c25223730393e13141d1a0f080106\n"
-		"check: 329ee93a25f4e0b1\n",
+		"check: 8805730cc6cf479a\n",
 
-		"SHARDKEY-SHARE-V1\n"
+		"SYMBOLON-SHARE-V1\n"
 		"scheme: shamir-gf256\n"
 		"threshold: 3\n"
 		"shares: 5\n"
 		"index: 3\n"
 		"set-id: 7f3a9c0e5b21d846\n"
-		"fingerprint: 2ff70fe219b3a5a5\n"
+		"fingerprint: 3a8cb0671aafe7c3\n"
 		"data: 3b3c35322720292e03040d0a1f1811164b4c45425750595e73747d7a6f686166\n"
-		"check: 1a9f79aa28038b9b\n",
+		"check: bf24b3b9527fd7fa\n",
 
-		"SHARDKEY-SHARE-V1\n"
+		"SYMBOLON-SHARE-V1\n"
 		"scheme: shamir-gf256\n"
 		"threshold: 3\n"
 		"shares: 5\n"
 		"index: 4\n"
 		"set-id: 7f3a9c0e5b21d846\n"
-		"fingerprint: 2ff70fe219b3a5a5\n"
+		"fingerprint: 3a8cb0671aafe7c3\n"
 		"data: ecf9c6d3b8ad928744516e7b10053a2fa7b28d98f3e6d9cc0f1a25305b4e7164\n"
-		"check: c5e32e514b485b28\n",
+		"check: 809902a416f34a5c\n",
 
-		"SHARDKEY-SHARE-V1\n"
+		"SYMBOLON-SHARE-V1\n"
 		"scheme: shamir-gf256\n"
 		"threshold: 3\n"
 		"shares: 5\n"
 		"index: 5\n"
 		"set-id: 7f3a9c0e5b21d846\n"
-		"fingerprint: 2ff70fe219b3a5a5\n"
+		"fingerprint: 3a8cb0671aafe7c3\n"
 		"data: 8c99a6b3d8cdf2e724310e1b70655a4fc7d2edf89386b9ac6f7a45503b2e1104\n"
-		"check: ce679027135570be\n"
+		"check: f4c4ecbfc719504b\n"
 	};
 
-	struct shardkey_share_record parsed_recs[5];
+	struct symbolon_share_record parsed_recs[5];
 
 	for (uint8_t i = 0u; i < 5u; i++) {
-		struct shardkey_share_record rec;
+		struct symbolon_share_record rec;
 		memset(&rec, 0, sizeof(rec));
 		rec.threshold = 3u;
 		rec.shares = 5u;
 		rec.index = (uint8_t)(i + 1u);
 		memcpy(rec.set_id, set_id, sizeof(set_id));
 		memcpy(rec.fingerprint, fp, sizeof(fp));
-		memcpy(rec.data, shares[i], SHARDKEY_SECRET_LEN);
+		memcpy(rec.data, shares[i], SYMBOLON_SECRET_LEN);
 
-		char buf[SHARDKEY_SHARE_BUF_MAX];
+		char buf[SYMBOLON_SHARE_BUF_MAX];
 		size_t len = 0u;
 		TEST_ASSERT(share_fmt_encode(&rec, buf, sizeof(buf), &len) == SHARE_FMT_OK,
 		            "encode share %u", (unsigned int)(i + 1u));
@@ -502,7 +502,7 @@ static void test_shamir_and_share_vectors(void)
 			}
 			char orig = buf[pos];
 			buf[pos] = (orig == 'a') ? 'b' : 'a';
-			struct shardkey_share_record bad_rec;
+			struct symbolon_share_record bad_rec;
 			int prc = share_fmt_parse(buf, len, &bad_rec);
 			TEST_ASSERT(prc != SHARE_FMT_OK,
 			            "corrupted char at pos %zu in share %u was not rejected",
@@ -519,14 +519,14 @@ static void test_shamir_and_share_vectors(void)
 	            "reject subset of 2 < threshold 3");
 
 	/* Duplicate index rejection */
-	struct shardkey_share_record dup_recs[3] = {
+	struct symbolon_share_record dup_recs[3] = {
 		parsed_recs[0], parsed_recs[1], parsed_recs[0]
 	};
 	TEST_ASSERT(share_fmt_validate_set(dup_recs, 3u) == SHARE_FMT_ERR_DUPLICATE_IDX,
 	            "reject duplicate share index");
 
 	/* Mismatched set-id rejection */
-	struct shardkey_share_record mismatch_recs[3] = {
+	struct symbolon_share_record mismatch_recs[3] = {
 		parsed_recs[0], parsed_recs[1], parsed_recs[2]
 	};
 	mismatch_recs[2].set_id[0] ^= 0xffu;
@@ -554,15 +554,15 @@ static void test_shamir_and_share_vectors(void)
 	};
 
 	uint8_t seed[32];
-	sha256_oneshot("SHARDKEY-TEST-SEED", 18u, seed);
+	sha256_oneshot("SYMBOLON-TEST-SEED", 18u, seed);
 
 	for (size_t c = 0u; c < sizeof(configs) / sizeof(configs[0]); c++) {
 		uint8_t n = configs[c][0];
 		uint8_t k = configs[c][1];
 		uint8_t c_secret[32];
-		uint8_t c_coeffs[SHARDKEY_MAX_COEFF_BYTES];
+		uint8_t c_coeffs[SYMBOLON_MAX_COEFF_BYTES];
 		uint8_t c_setid[8];
-		uint8_t c_shares[SHARDKEY_MAX_SHARES][32];
+		uint8_t c_shares[SYMBOLON_MAX_SHARES][32];
 
 		TEST_ASSERT(entropy_derive_ceremony(seed, k, c_secret, c_coeffs, c_setid) == 0,
 		            "derive for %u-of-%u", (unsigned int)k, (unsigned int)n);
@@ -588,11 +588,11 @@ static void test_secmem(void)
 	/* Lockdown without requiring mlockall (since ASan maps huge shadow memory) */
 	TEST_ASSERT(secmem_lockdown(false) == 0, "secmem_lockdown(false)");
 
-	struct shardkey_secpool *pool = secmem_pool();
+	struct symbolon_secpool *pool = secmem_pool();
 	memset(pool->secret, 0x5au, sizeof(pool->secret));
 	secmem_wipe_all();
 
-	uint8_t zeros[SHARDKEY_SECRET_LEN];
+	uint8_t zeros[SYMBOLON_SECRET_LEN];
 	memset(zeros, 0, sizeof(zeros));
 	TEST_ASSERT(secmem_ct_equal(pool->secret, zeros, sizeof(zeros)) == 1,
 	            "secmem_wipe_all must zero secret");
@@ -610,7 +610,7 @@ static void test_secmem(void)
 
 static void test_drive_and_ui(void)
 {
-	char tmp_tpl[] = "/tmp/shardkey-test-XXXXXX";
+	char tmp_tpl[] = "/tmp/symbolon-test-XXXXXX";
 	char *tmp_root = mkdtemp(tmp_tpl);
 	TEST_ASSERT(tmp_root != NULL, "mkdtemp");
 
@@ -655,7 +655,7 @@ static void test_drive_and_ui(void)
 	TEST_ASSERT(list[0].size_bytes == 15633408ULL * 512ULL, "size_bytes mismatch");
 
 	/* Test drive_write_files_in_dir and drive_verify_files_in_dir */
-	struct shardkey_share_record rec;
+	struct symbolon_share_record rec;
 	memset(&rec, 0, sizeof(rec));
 	rec.threshold = 3u;
 	rec.shares = 5u;
@@ -664,8 +664,8 @@ static void test_drive_and_ui(void)
 	memset(rec.fingerprint, 0x22u, sizeof(rec.fingerprint));
 	memset(rec.data, 0x33u, sizeof(rec.data));
 
-	char share_buf[SHARDKEY_SHARE_BUF_MAX];
-	char verify_buf[SHARDKEY_SHARE_BUF_MAX];
+	char share_buf[SYMBOLON_SHARE_BUF_MAX];
+	char verify_buf[SYMBOLON_SHARE_BUF_MAX];
 	char readme_buf[1024];
 	size_t share_len = 0u;
 	size_t readme_len = 0u;
@@ -687,7 +687,7 @@ static void test_drive_and_ui(void)
 
 	/* Tamper with the written share file on disk and confirm verification fails */
 	char share_path[256];
-	snprintf(share_path, sizeof(share_path), "%s/shardkey-share-1-of-5.txt", mnt_dir);
+	snprintf(share_path, sizeof(share_path), "%s/symbolon-share-1-of-5.txt", mnt_dir);
 	int fd = open(share_path, O_RDWR);
 	TEST_ASSERT(fd >= 0, "open share file for tamper test");
 	TEST_ASSERT(lseek(fd, 120, SEEK_SET) == 120, "lseek");
@@ -729,7 +729,7 @@ static void test_drive_and_ui(void)
 	memset(ui_out_buf, 0, sizeof(ui_out_buf));
 	in_fp = fmemopen(dice_input, strlen(dice_input), "r");
 	out_fp = fmemopen(ui_out_buf, sizeof(ui_out_buf) - 1u, "w");
-	uint8_t collected[SHARDKEY_MAX_DICE_ROLLS];
+	uint8_t collected[SYMBOLON_MAX_DICE_ROLLS];
 	size_t collected_len = 0u;
 	TEST_ASSERT(ui_collect_dice(in_fp, out_fp, collected,
 	                            sizeof(collected), &collected_len) == 0,
@@ -768,7 +768,7 @@ static void test_drive_and_ui(void)
 	TEST_ASSERT(ui_collect_dice(in_fp, out_fp, collected,
 	                            sizeof(collected), &collected_len) == 0,
 	            "ui_collect_dice DICE_FULL");
-	TEST_ASSERT(collected_len == SHARDKEY_MAX_DICE_ROLLS, "expected 1024 rolls capped");
+	TEST_ASSERT(collected_len == SYMBOLON_MAX_DICE_ROLLS, "expected 1024 rolls capped");
 	TEST_ASSERT(ui_confirm_erase_drive(in_fp, out_fp, 1u, 3u, &list[0]) == 1,
 	            "excess rolls after DICE_FULL must not corrupt next prompt");
 	fclose(in_fp);
@@ -783,16 +783,16 @@ static void test_drive_and_ui(void)
 	            "re-write share 1 for inspect test");
 	TEST_ASSERT(drive_inspect_existing_dir(mnt_dir, 2u, 5u, rec.set_id) == DRIVE_EXISTING_EARLIER_SHARE,
 	            "must detect share 1 from current ceremony");
-	uint8_t other_set_id[SHARDKEY_SET_ID_LEN];
+	uint8_t other_set_id[SYMBOLON_SET_ID_LEN];
 	memset(other_set_id, 0x99u, sizeof(other_set_id));
 	TEST_ASSERT(drive_inspect_existing_dir(mnt_dir, 2u, 5u, other_set_id) == DRIVE_EXISTING_NONE,
 	            "share from different ceremony set_id must not trigger earlier-share refusal");
 
-	snprintf(cmd, sizeof(cmd), "mkdir -p '%s/shardkey' && touch '%s/shardkey/bzImage'",
+	snprintf(cmd, sizeof(cmd), "mkdir -p '%s/symbolon' && touch '%s/symbolon/bzImage'",
 	         mnt_dir, mnt_dir);
 	TEST_ASSERT(system(cmd) == 0, "create boot stick marker");
 	TEST_ASSERT(drive_inspect_existing_dir(mnt_dir, 1u, 5u, rec.set_id) == DRIVE_EXISTING_BOOT_STICK,
-	            "must detect ShardKey boot stick marker");
+	            "must detect Symbolon boot stick marker");
 
 	snprintf(cmd, sizeof(cmd), "rm -rf '%s'", tmp_root);
 	TEST_ASSERT(system(cmd) == 0, "cleanup tmp_root");
@@ -804,7 +804,7 @@ struct sim_ceremony_state {
 	char    sys_devs[160];
 	char    dev_dir[160];
 	char    mnt_dir[160];
-	char    saved_shares[4][SHARDKEY_SHARE_BUF_MAX];
+	char    saved_shares[4][SYMBOLON_SHARE_BUF_MAX];
 	size_t  saved_lens[4];
 	int     share1_insert_step;
 	int     share2_insert_step;
@@ -818,7 +818,7 @@ static void sim_plug_usb(const struct sim_ceremony_state *st, const char *dev_na
 	snprintf(cmd, sizeof(cmd),
 	         "mkdir -p '%s/pci0000:00/usb1/1-1/block/%s/device' && "
 	         "printf '1048576\\n' > '%s/pci0000:00/usb1/1-1/block/%s/size' && "
-	         "printf 'ShardKey\\n' > '%s/pci0000:00/usb1/1-1/block/%s/device/vendor' && "
+	         "printf 'Symbolon\\n' > '%s/pci0000:00/usb1/1-1/block/%s/device/vendor' && "
 	         "printf 'TestUSB\\n' > '%s/pci0000:00/usb1/1-1/block/%s/device/model' && "
 	         "ln -sf '../devices/pci0000:00/usb1/1-1/block/%s' '%s/%s'",
 	         st->sys_devs, dev_name,
@@ -883,7 +883,7 @@ static void sim_drive_event_cb(const char *event, uint8_t share_idx, void *user_
 			if (st->share1_insert_step == 1) {
 				/* Attempt 1: accidentally insert the boot stick */
 				snprintf(cmd, sizeof(cmd),
-				         "mkdir -p '%s/shardkey' && touch '%s/shardkey/bzImage'",
+				         "mkdir -p '%s/symbolon' && touch '%s/symbolon/bzImage'",
 				         st->mnt_dir, st->mnt_dir);
 				TEST_ASSERT(system(cmd) == 0, "create mock boot stick marker");
 				sim_plug_usb(st, "sda");
@@ -899,7 +899,7 @@ static void sim_drive_event_cb(const char *event, uint8_t share_idx, void *user_
 				/* Attempt 1: accidentally re-insert Share 1's drive */
 				char fpath[512];
 				snprintf(fpath, sizeof(fpath),
-				         "%s/shardkey-share-1-of-3.txt", st->mnt_dir);
+				         "%s/symbolon-share-1-of-3.txt", st->mnt_dir);
 				int fd = open(fpath, O_WRONLY | O_CREAT | O_TRUNC, 0600);
 				if (fd >= 0) {
 					ssize_t wr = write(fd, st->saved_shares[1], st->saved_lens[1]);
@@ -926,7 +926,7 @@ static void sim_drive_event_cb(const char *event, uint8_t share_idx, void *user_
 				/* Corrupt 1 byte on disk before read-back verification */
 				char fpath[512];
 				snprintf(fpath, sizeof(fpath),
-				         "%s/shardkey-share-2-of-3.txt", st->mnt_dir);
+				         "%s/symbolon-share-2-of-3.txt", st->mnt_dir);
 				int fd = open(fpath, O_RDWR);
 				if (fd >= 0) {
 					(void)lseek(fd, 120, SEEK_SET);
@@ -946,7 +946,7 @@ static void test_ceremony_end_to_end(void)
 {
 	struct sim_ceremony_state st;
 	memset(&st, 0, sizeof(st));
-	snprintf(st.tmp_root, sizeof(st.tmp_root), "/tmp/shardkey-ceremony-XXXXXX");
+	snprintf(st.tmp_root, sizeof(st.tmp_root), "/tmp/symbolon-ceremony-XXXXXX");
 	TEST_ASSERT(mkdtemp(st.tmp_root) != NULL, "mkdtemp ceremony");
 
 	snprintf(st.sys_block, sizeof(st.sys_block), "%s/sys/block", st.tmp_root);
@@ -1002,7 +1002,7 @@ static void test_ceremony_end_to_end(void)
 	FILE *err_fp = fmemopen(err_buf, sizeof(err_buf) - 1u, "w");
 	TEST_ASSERT(in_fp != NULL && out_fp != NULL && err_fp != NULL, "fmemopen ceremony");
 
-	struct shardkey_ceremony_cfg cfg;
+	struct symbolon_ceremony_cfg cfg;
 	memset(&cfg, 0, sizeof(cfg));
 	cfg.in = in_fp;
 	cfg.out = out_fp;
@@ -1018,13 +1018,13 @@ static void test_ceremony_end_to_end(void)
 	cfg.user_data = &st;
 
 	secmem_clear_interrupted();
-	int rc = shardkey_ceremony_run(&cfg);
+	int rc = symbolon_ceremony_run(&cfg);
 	fclose(in_fp);
 	fclose(out_fp);
 	fclose(err_fp);
 
-	TEST_ASSERT(rc == 0, "shardkey_ceremony_run failed (rc=%d, err=%s)", rc, err_buf);
-	TEST_ASSERT(strstr(out_buf, "appears to be the ShardKey boot stick") != NULL,
+	TEST_ASSERT(rc == 0, "symbolon_ceremony_run failed (rc=%d, err=%s)", rc, err_buf);
+	TEST_ASSERT(strstr(out_buf, "appears to be the Symbolon boot stick") != NULL,
 	            "expected boot stick refusal message");
 	TEST_ASSERT(strstr(out_buf, "already contains an earlier share from this ceremony") != NULL,
 	            "expected earlier-share refusal message");
@@ -1034,7 +1034,7 @@ static void test_ceremony_end_to_end(void)
 	            "expected ceremony completion message");
 
 	/* Parse all 3 written share files and verify all 2-of-3 subsets rebuild the secret */
-	struct shardkey_share_record recs[3];
+	struct symbolon_share_record recs[3];
 	for (uint8_t idx = 1u; idx <= 3u; idx++) {
 		TEST_ASSERT(st.saved_lens[idx] > 0u, "saved share %u empty", (unsigned int)idx);
 		TEST_ASSERT(share_fmt_parse(st.saved_shares[idx], st.saved_lens[idx],
@@ -1066,13 +1066,13 @@ static void test_ceremony_end_to_end(void)
 	            memcmp(rebuilt_12, rebuilt_23, 32u) == 0,
 	            "all 2-subsets must rebuild identical secret");
 
-	uint8_t calc_fp[SHARDKEY_FINGERPRINT_LEN];
+	uint8_t calc_fp[SYMBOLON_FINGERPRINT_LEN];
 	TEST_ASSERT(share_fmt_fingerprint(rebuilt_12, calc_fp) == SHARE_FMT_OK, "calc_fp");
-	TEST_ASSERT(memcmp(calc_fp, recs[0].fingerprint, SHARDKEY_FINGERPRINT_LEN) == 0,
+	TEST_ASSERT(memcmp(calc_fp, recs[0].fingerprint, SYMBOLON_FINGERPRINT_LEN) == 0,
 	            "rebuilt secret fingerprint must match share fingerprint");
 
 	/* Confirm entire static secret pool is wiped after ceremony completion */
-	struct shardkey_secpool zero_pool;
+	struct symbolon_secpool zero_pool;
 	memset(&zero_pool, 0, sizeof(zero_pool));
 	TEST_ASSERT(secmem_ct_equal(secmem_pool(), &zero_pool, sizeof(zero_pool)) == 1,
 	            "secmem_pool must be completely zeroed after ceremony");
@@ -1098,7 +1098,7 @@ static void test_ceremony_end_to_end(void)
 	cfg.err = err_fp;
 
 	secmem_clear_interrupted();
-	rc = shardkey_ceremony_run(&cfg);
+	rc = symbolon_ceremony_run(&cfg);
 	fclose(in_fp);
 	fclose(out_fp);
 	fclose(err_fp);
@@ -1116,77 +1116,77 @@ static void test_ceremony_end_to_end(void)
 static void test_edge_cases(void)
 {
 	/* 1. Malformed share format edge cases */
-	struct shardkey_share_record rec;
+	struct symbolon_share_record rec;
 	TEST_ASSERT(share_fmt_parse(NULL, 10u, &rec) == SHARE_FMT_ERR_ARG, "NULL buf");
 	TEST_ASSERT(share_fmt_parse("", 0u, &rec) == SHARE_FMT_ERR_ARG, "empty buf");
 
 	/* CRLF line endings rejected */
 	const char *crlf_share =
-		"SHARDKEY-SHARE-V1\r\n"
+		"SYMBOLON-SHARE-V1\r\n"
 		"scheme: shamir-gf256\r\n"
 		"threshold: 3\r\n"
 		"shares: 5\r\n"
 		"index: 1\r\n"
 		"set-id: 7f3a9c0e5b21d846\r\n"
-		"fingerprint: 2ff70fe219b3a5a5\r\n"
+		"fingerprint: 3a8cb0671aafe7c3\r\n"
 		"data: 606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f\r\n"
-		"check: 2a2c1d24961824fd\r\n";
+		"check: a2f84e7614a81070\r\n";
 	TEST_ASSERT(share_fmt_parse(crlf_share, strlen(crlf_share), &rec) == SHARE_FMT_ERR_SYNTAX,
 	            "CRLF must be rejected");
 
 	/* Uppercase hex rejected */
 	const char *upper_hex_share =
-		"SHARDKEY-SHARE-V1\n"
+		"SYMBOLON-SHARE-V1\n"
 		"scheme: shamir-gf256\n"
 		"threshold: 3\n"
 		"shares: 5\n"
 		"index: 1\n"
 		"set-id: 7F3A9C0E5B21D846\n"
-		"fingerprint: 2ff70fe219b3a5a5\n"
+		"fingerprint: 3a8cb0671aafe7c3\n"
 		"data: 606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f\n"
-		"check: 2a2c1d24961824fd\n";
+		"check: a2f84e7614a81070\n";
 	TEST_ASSERT(share_fmt_parse(upper_hex_share, strlen(upper_hex_share), &rec) == SHARE_FMT_ERR_HEX,
 	            "uppercase hex must be rejected");
 
 	/* Policy violation inside share file (threshold < majority) rejected */
 	const char *bad_policy_share =
-		"SHARDKEY-SHARE-V1\n"
+		"SYMBOLON-SHARE-V1\n"
 		"scheme: shamir-gf256\n"
 		"threshold: 2\n"
 		"shares: 5\n"
 		"index: 1\n"
 		"set-id: 7f3a9c0e5b21d846\n"
-		"fingerprint: 2ff70fe219b3a5a5\n"
+		"fingerprint: 3a8cb0671aafe7c3\n"
 		"data: 606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f\n"
-		"check: 2a2c1d24961824fd\n";
+		"check: a2f84e7614a81070\n";
 	TEST_ASSERT(share_fmt_parse(bad_policy_share, strlen(bad_policy_share), &rec) == SHARE_FMT_ERR_POLICY,
 	            "threshold below majority in share file must be rejected");
 
 	/* Out-of-range index inside share file rejected */
 	const char *bad_index_share =
-		"SHARDKEY-SHARE-V1\n"
+		"SYMBOLON-SHARE-V1\n"
 		"scheme: shamir-gf256\n"
 		"threshold: 3\n"
 		"shares: 5\n"
 		"index: 6\n"
 		"set-id: 7f3a9c0e5b21d846\n"
-		"fingerprint: 2ff70fe219b3a5a5\n"
+		"fingerprint: 3a8cb0671aafe7c3\n"
 		"data: 606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f\n"
-		"check: 2a2c1d24961824fd\n";
+		"check: a2f84e7614a81070\n";
 	TEST_ASSERT(share_fmt_parse(bad_index_share, strlen(bad_index_share), &rec) == SHARE_FMT_ERR_INDEX,
 	            "index > shares in share file must be rejected");
 
 	/* Trailing newline / garbage after check line rejected */
 	const char *trailing_garbage =
-		"SHARDKEY-SHARE-V1\n"
+		"SYMBOLON-SHARE-V1\n"
 		"scheme: shamir-gf256\n"
 		"threshold: 3\n"
 		"shares: 5\n"
 		"index: 1\n"
 		"set-id: 7f3a9c0e5b21d846\n"
-		"fingerprint: 2ff70fe219b3a5a5\n"
+		"fingerprint: 3a8cb0671aafe7c3\n"
 		"data: 606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f\n"
-		"check: 2a2c1d24961824fd\n\n";
+		"check: a2f84e7614a81070\n\n";
 	TEST_ASSERT(share_fmt_parse(trailing_garbage, strlen(trailing_garbage), &rec) == SHARE_FMT_ERR_SYNTAX,
 	            "extra trailing newline must be rejected");
 
@@ -1252,11 +1252,11 @@ int main(void)
 	test_edge_cases();
 
 	if (g_failures > 0) {
-		fprintf(stderr, "[test_shardkey] FAILED (%d failure(s) out of %d checks).\n",
+		fprintf(stderr, "[test_symbolon] FAILED (%d failure(s) out of %d checks).\n",
 		        g_failures, g_checks);
 		return 1;
 	}
 
-	printf("[test_shardkey] PASS: all %d checks succeeded.\n", g_checks);
+	printf("[test_symbolon] PASS: all %d checks succeeded.\n", g_checks);
 	return 0;
 }

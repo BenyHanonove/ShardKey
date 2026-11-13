@@ -7,10 +7,10 @@
 #include <string.h>
 #include <sys/random.h>
 
-#define SEED_DOMAIN_PREFIX   "SHARDKEY-SEED-V1"
-#define SECRET_INFO_LABEL    "SHARDKEY-SECRET-V1"
-#define SETID_INFO_LABEL     "SHARDKEY-SETID-V1"
-#define COEFFS_INFO_LABEL    "SHARDKEY-COEFFS-V1"
+#define SEED_DOMAIN_PREFIX   "SYMBOLON-SEED-V1"
+#define SECRET_INFO_LABEL    "SYMBOLON-SECRET-V1"
+#define SETID_INFO_LABEL     "SYMBOLON-SETID-V1"
+#define COEFFS_INFO_LABEL    "SYMBOLON-COEFFS-V1"
 
 int entropy_get_kernel_random(uint8_t *buf, size_t len)
 {
@@ -45,7 +45,7 @@ int entropy_get_kernel_random(uint8_t *buf, size_t len)
 
 int entropy_dice_init(struct dice_collector *dc, uint8_t *buf, size_t capacity)
 {
-	if (dc == NULL || buf == NULL || capacity < SHARDKEY_MIN_DICE_ROLLS) {
+	if (dc == NULL || buf == NULL || capacity < SYMBOLON_MIN_DICE_ROLLS) {
 		return -1;
 	}
 	secmem_zero(buf, capacity);
@@ -62,7 +62,7 @@ enum dice_feed_result entropy_dice_feed_char(struct dice_collector *dc, char c)
 	}
 
 	if (c == '\n' || c == '\r') {
-		if (dc->count >= SHARDKEY_MIN_DICE_ROLLS) {
+		if (dc->count >= SYMBOLON_MIN_DICE_ROLLS) {
 			return DICE_DONE;
 		}
 		return DICE_NEED_MORE;
@@ -79,14 +79,14 @@ enum dice_feed_result entropy_dice_feed_char(struct dice_collector *dc, char c)
 	return DICE_IGNORED;
 }
 
-int entropy_mix_seed(const uint8_t kernel_rnd[SHARDKEY_KERNEL_RND_LEN],
+int entropy_mix_seed(const uint8_t kernel_rnd[SYMBOLON_KERNEL_RND_LEN],
                      const uint8_t *dice, size_t dice_len,
-                     uint8_t out_seed[SHARDKEY_SEED_LEN])
+                     uint8_t out_seed[SYMBOLON_SEED_LEN])
 {
 	if (kernel_rnd == NULL || dice == NULL || out_seed == NULL) {
 		return -1;
 	}
-	if (dice_len < SHARDKEY_MIN_DICE_ROLLS || dice_len > SHARDKEY_MAX_DICE_ROLLS) {
+	if (dice_len < SYMBOLON_MIN_DICE_ROLLS || dice_len > SYMBOLON_MAX_DICE_ROLLS) {
 		return -1;
 	}
 
@@ -110,7 +110,7 @@ int entropy_mix_seed(const uint8_t kernel_rnd[SHARDKEY_KERNEL_RND_LEN],
 	struct sha256_ctx ctx;
 	sha256_init(&ctx);
 	sha256_update(&ctx, SEED_DOMAIN_PREFIX, strlen(SEED_DOMAIN_PREFIX));
-	sha256_update(&ctx, kernel_rnd, SHARDKEY_KERNEL_RND_LEN);
+	sha256_update(&ctx, kernel_rnd, SYMBOLON_KERNEL_RND_LEN);
 	sha256_update(&ctx, len_be, sizeof(len_be));
 	sha256_update(&ctx, dice, dice_len);
 	sha256_final(&ctx, out_seed);
@@ -119,7 +119,7 @@ int entropy_mix_seed(const uint8_t kernel_rnd[SHARDKEY_KERNEL_RND_LEN],
 	return 0;
 }
 
-int entropy_hkdf_expand(const uint8_t seed[SHARDKEY_SEED_LEN],
+int entropy_hkdf_expand(const uint8_t seed[SYMBOLON_SEED_LEN],
                         const void *info, size_t info_len,
                         uint8_t *out, size_t out_len)
 {
@@ -143,7 +143,7 @@ int entropy_hkdf_expand(const uint8_t seed[SHARDKEY_SEED_LEN],
 		struct hmac_sha256_ctx hctx;
 		uint8_t block[SHA256_DIGEST_SIZE];
 
-		hmac_sha256_init(&hctx, seed, SHARDKEY_SEED_LEN);
+		hmac_sha256_init(&hctx, seed, SYMBOLON_SEED_LEN);
 		if (prev_len > 0u) {
 			hmac_sha256_update(&hctx, prev, prev_len);
 		}
@@ -170,34 +170,34 @@ int entropy_hkdf_expand(const uint8_t seed[SHARDKEY_SEED_LEN],
 	return 0;
 }
 
-int entropy_derive_ceremony(const uint8_t seed[SHARDKEY_SEED_LEN],
+int entropy_derive_ceremony(const uint8_t seed[SYMBOLON_SEED_LEN],
                             uint8_t k,
-                            uint8_t out_secret[SHARDKEY_SECRET_LEN],
+                            uint8_t out_secret[SYMBOLON_SECRET_LEN],
                             uint8_t *out_coeffs,
-                            uint8_t out_set_id[SHARDKEY_SET_ID_LEN])
+                            uint8_t out_set_id[SYMBOLON_SET_ID_LEN])
 {
 	if (seed == NULL || out_secret == NULL || out_coeffs == NULL || out_set_id == NULL) {
 		return -1;
 	}
-	if (k < SHARDKEY_MIN_SHARES || k > SHARDKEY_MAX_SHARES) {
+	if (k < SYMBOLON_MIN_SHARES || k > SYMBOLON_MAX_SHARES) {
 		return -1;
 	}
 
-	size_t coeff_bytes = (size_t)SHARDKEY_SECRET_LEN * (size_t)(k - 1u);
+	size_t coeff_bytes = (size_t)SYMBOLON_SECRET_LEN * (size_t)(k - 1u);
 
 	if (entropy_hkdf_expand(seed, SECRET_INFO_LABEL, strlen(SECRET_INFO_LABEL),
-	                        out_secret, SHARDKEY_SECRET_LEN) != 0) {
+	                        out_secret, SYMBOLON_SECRET_LEN) != 0) {
 		return -1;
 	}
 	if (entropy_hkdf_expand(seed, SETID_INFO_LABEL, strlen(SETID_INFO_LABEL),
-	                        out_set_id, SHARDKEY_SET_ID_LEN) != 0) {
-		secmem_zero(out_secret, SHARDKEY_SECRET_LEN);
+	                        out_set_id, SYMBOLON_SET_ID_LEN) != 0) {
+		secmem_zero(out_secret, SYMBOLON_SECRET_LEN);
 		return -1;
 	}
 	if (entropy_hkdf_expand(seed, COEFFS_INFO_LABEL, strlen(COEFFS_INFO_LABEL),
 	                        out_coeffs, coeff_bytes) != 0) {
-		secmem_zero(out_secret, SHARDKEY_SECRET_LEN);
-		secmem_zero(out_set_id, SHARDKEY_SET_ID_LEN);
+		secmem_zero(out_secret, SYMBOLON_SECRET_LEN);
+		secmem_zero(out_set_id, SYMBOLON_SET_ID_LEN);
 		return -1;
 	}
 

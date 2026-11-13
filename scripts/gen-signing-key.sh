@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Generate the offline ShardKey release signing key pair (one-time setup).
+# Generate the offline Symbolon release signing key pair (one-time setup).
 # Follows docs/SIGNING.md (§3, §4.1):
 #   - RSA-2048 private key, AES-256 encrypted, written ONLY to the external key drive
-#   - Self-signed X.509 certificate (CN=ShardKey Signing, 10-year validity)
-#   - Public outputs in keys/ (or $SHARDKEY_KEYS_DIR):
-#       shardkey-signing.crt  (PEM)
-#       shardkey-signing.cer  (DER for UEFI firmware db enrollment)
+#   - Self-signed X.509 certificate (CN=Symbolon Signing, 10-year validity)
+#   - Public outputs in keys/ (or $SYMBOLON_KEYS_DIR):
+#       symbolon-signing.crt  (PEM)
+#       symbolon-signing.cer  (DER for UEFI firmware db enrollment)
 #       FINGERPRINT.txt       (SHA-256 fingerprint for out-of-band verification)
 #
 # Usage:
@@ -16,7 +16,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-KEYS_DIR="${SHARDKEY_KEYS_DIR:-${ROOT_DIR}/keys}"
+KEYS_DIR="${SYMBOLON_KEYS_DIR:-${ROOT_DIR}/keys}"
 
 log() {
     printf '[gen-signing-key] %s\n' "$*"
@@ -31,7 +31,7 @@ usage() {
     cat <<'EOF'
 Usage: scripts/gen-signing-key.sh [--force] [--pass-file <path>] <key-usb-dir>
 
-Generates an encrypted RSA-2048 private key at <key-usb-dir>/shardkey-signing.key
+Generates an encrypted RSA-2048 private key at <key-usb-dir>/symbolon-signing.key
 and public certificates + fingerprint in keys/.
 EOF
 }
@@ -84,9 +84,9 @@ if [[ -n "${PASS_FILE}" ]]; then
     [[ -r "${PASS_FILE}" ]] || die "passphrase file not readable: ${PASS_FILE}"
 fi
 
-KEY_OUT="${REAL_DEST}/shardkey-signing.key"
-CRT_OUT="${KEYS_DIR}/shardkey-signing.crt"
-CER_OUT="${KEYS_DIR}/shardkey-signing.cer"
+KEY_OUT="${REAL_DEST}/symbolon-signing.key"
+CRT_OUT="${KEYS_DIR}/symbolon-signing.crt"
+CER_OUT="${KEYS_DIR}/symbolon-signing.cer"
 FP_OUT="${KEYS_DIR}/FINGERPRINT.txt"
 
 if [[ "${FORCE}" -eq 0 ]]; then
@@ -100,7 +100,7 @@ fi
 umask 077
 mkdir -p "${KEYS_DIR}"
 
-EXT_CFG="$(mktemp "${TMPDIR:-/tmp}/shardkey-x509.XXXXXX.cnf")"
+EXT_CFG="$(mktemp "${TMPDIR:-/tmp}/symbolon-x509.XXXXXX.cnf")"
 cleanup() {
     rm -f "${EXT_CFG}"
 }
@@ -113,7 +113,7 @@ x509_extensions = v3_codesign
 prompt = no
 
 [req_dn]
-CN = ShardKey Signing
+CN = Symbolon Signing
 
 [v3_codesign]
 subjectKeyIdentifier = hash
@@ -131,7 +131,7 @@ else
 fi
 chmod 0400 "${KEY_OUT}"
 
-log "Creating self-signed X.509 certificate (10-year validity, CN=ShardKey Signing)..."
+log "Creating self-signed X.509 certificate (10-year validity, CN=Symbolon Signing)..."
 umask 022
 if [[ -n "${PASS_FILE}" ]]; then
     openssl req -new -x509 -sha256 -days 3650 \
@@ -152,7 +152,7 @@ SUBJECT_LINE="$(openssl x509 -in "${CRT_OUT}" -noout -subject)"
 DATES_LINES="$(openssl x509 -in "${CRT_OUT}" -noout -dates)"
 
 {
-    printf '# ShardKey Signing Certificate Fingerprint (public)\n'
+    printf '# Symbolon Signing Certificate Fingerprint (public)\n'
     printf '# Compare against hardware enrollment and `make verify` output.\n'
     printf '%s\n' "${SUBJECT_LINE}"
     printf '%s\n' "${DATES_LINES}"

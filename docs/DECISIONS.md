@@ -1,4 +1,4 @@
-# ShardKey — Decisions Log
+# Symbolon — Decisions Log
 
 Short records of each design decision: what we chose, what else was considered, and why.
 Newest decisions go at the bottom. Change a decision by adding a new entry that
@@ -19,7 +19,7 @@ program, nothing else. No Debian, Alpine, Tails, or Buildroot inside the image.
 | Alpine Linux | Already musl + BusyBox, fast to start | Generic kernel with thousands of modules, OpenRC, apk — far more than we need, and removing it is harder than never adding it |
 | Tails / other live distros | Polished, amnesic by design | Huge (GBs), networking built in, hard to audit |
 
-**Why:** The whole security argument of ShardKey is "the system cannot do anything except
+**Why:** The whole security argument of Symbolon is "the system cannot do anything except
 this one job". That is easiest to prove when we start from nothing (`allnoconfig`) and
 add only what is needed.
 
@@ -46,7 +46,7 @@ by accident.
 
 ## D-004 — musl, static linking
 
-**Decision:** Both BusyBox and `shardkey` are statically linked against **musl** with
+**Decision:** Both BusyBox and `symbolon` are statically linked against **musl** with
 `musl-gcc`.
 
 **Why:** No dynamic loader, no shared libraries, nothing loaded at runtime that isn't in
@@ -87,7 +87,7 @@ zeroing from the boot menu.
 
 *Amended by D-018 (the randomness source now also includes dice).*
 
-**Decision:** ShardKey generates a fresh 256-bit secret with `getrandom(…, 0)`. It does
+**Decision:** Symbolon generates a fresh 256-bit secret with `getrandom(…, 0)`. It does
 not accept a user-supplied secret in v1.
 
 **Why:** Generic and useful as a master key / disk-encryption key / root-of-trust
@@ -149,11 +149,11 @@ removes the data even if the RAM is frozen and read (cold-boot attack).
 
 ## D-014 — Recovery is a separate project
 
-**Decision:** ShardKey contains `combine()` only for its internal self-test. A tool that
+**Decision:** Symbolon contains `combine()` only for its internal self-test. A tool that
 reads share files and rebuilds the secret is a separate project.
 
 **Why:** Different threat model (recovery happens when and where the secret is needed),
-different lifecycle. ShardKey publishes the share format so that tool can be written
+different lifecycle. Symbolon publishes the share format so that tool can be written
 against a stable spec.
 
 ## D-015 — Internal disks invisible
@@ -201,7 +201,7 @@ screen and written into every share file.
 derived from both sources:
 
 ```
-seed = SHA-256("SHARDKEY-SEED-V1" ‖ getrandom(64 bytes) ‖ len(dice) ‖ dice)
+seed = SHA-256("SYMBOLON-SEED-V1" ‖ getrandom(64 bytes) ‖ len(dice) ‖ dice)
 secret, coefficients, set-id = HMAC-SHA256(seed, counter …)   (HKDF-Expand style)
 ```
 
@@ -246,7 +246,7 @@ every UEFI firmware supports it. Legacy BIOS machines get only the first check.
 **Decision:** The project is licensed under GPL-2.0-only.
 
 **Why:** Same license as the Linux kernel and BusyBox, which are shipped inside the
-image anyway. Anyone distributing a modified ShardKey must publish its source — fitting
+image anyway. Anyone distributing a modified Symbolon must publish its source — fitting
 for a tool whose trust depends on being auditable.
 
 ## D-022 — Linux 6.18 x86_64 non-disableable symbols and `EXPERT` gating
@@ -263,5 +263,5 @@ for a tool whose trust depends on being auditable.
 enabled (whereas runtime late microcode loading is a separate symbol,
 `CONFIG_MICROCODE_LATE_LOADING`, which stays `n`). Conversely, `COREDUMP` and `IO_URING`
 default to `y` with prompts hidden behind `if EXPERT`; enabling `CONFIG_EXPERT=y` allows
-`allnoconfig` + `shardkey.config` to turn both off.
+`allnoconfig` + `symbolon.config` to turn both off.
 

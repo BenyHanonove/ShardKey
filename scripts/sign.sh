@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Sign the ShardKey kernel and release manifest (docs/SIGNING.md §4.2):
+# Sign the Symbolon kernel and release manifest (docs/SIGNING.md §4.2):
 #   1. sbsign out/bzImage.unsigned -> out/bzImage
 #   2. Verify sbattach --remove restores out/bzImage.unsigned bit-for-bit
-#   3. Build out/shardkey.img containing signed out/bzImage
-#   4. Write out/SHA256SUMS (bzImage, bzImage.unsigned, shardkey.img, initramfs.cpio.gz)
+#   3. Build out/symbolon.img containing signed out/bzImage
+#   4. Write out/SHA256SUMS (bzImage, bzImage.unsigned, symbolon.img, initramfs.cpio.gz)
 #   5. Sign out/SHA256SUMS -> out/SHA256SUMS.sig
 #
 # Usage:
-#   scripts/sign.sh /path/to/shardkey-signing.key
-#   make sign KEY=/media/keyusb/shardkey-signing.key
+#   scripts/sign.sh /path/to/symbolon-signing.key
+#   make sign KEY=/media/keyusb/symbolon-signing.key
 
 set -euo pipefail
 
@@ -20,12 +20,12 @@ source "${ROOT_DIR}/config/versions.env"
 
 BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build}"
 OUT_DIR="${OUT_DIR:-${ROOT_DIR}/out}"
-KEYS_DIR="${SHARDKEY_KEYS_DIR:-${ROOT_DIR}/keys}"
-CERT="${KEYS_DIR}/shardkey-signing.crt"
+KEYS_DIR="${SYMBOLON_KEYS_DIR:-${ROOT_DIR}/keys}"
+CERT="${KEYS_DIR}/symbolon-signing.crt"
 UNSIGNED_KERNEL="${OUT_DIR}/bzImage.unsigned"
 SIGNED_KERNEL="${OUT_DIR}/bzImage"
 INITRAMFS_IMG="${OUT_DIR}/initramfs.cpio.gz"
-USB_IMG="${OUT_DIR}/shardkey.img"
+USB_IMG="${OUT_DIR}/symbolon.img"
 SUMS_FILE="${OUT_DIR}/SHA256SUMS"
 SIG_FILE="${OUT_DIR}/SHA256SUMS.sig"
 
@@ -40,7 +40,7 @@ die() {
 
 KEY_PATH="${1:-${KEY:-}}"
 if [[ -z "${KEY_PATH}" ]]; then
-    die "private key path is required (e.g. make sign KEY=/media/keyusb/shardkey-signing.key)"
+    die "private key path is required (e.g. make sign KEY=/media/keyusb/symbolon-signing.key)"
 fi
 [[ -r "${KEY_PATH}" ]] || die "private key not readable: ${KEY_PATH}"
 [[ -r "${CERT}" ]] || die "public certificate not found: ${CERT} (run scripts/gen-signing-key.sh first)"
@@ -51,7 +51,7 @@ for cmd in sbsign sbverify sbattach openssl sha256sum cmp; do
     command -v "${cmd}" >/dev/null 2>&1 || die "missing required command: ${cmd}"
 done
 
-WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/shardkey-sign.XXXXXX")"
+WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/symbolon-sign.XXXXXX")"
 cleanup() {
     rm -rf "${WORK_DIR}"
 }
@@ -81,7 +81,7 @@ log "Building bootable disk image ${USB_IMG} from signed kernel..."
 log "Writing ${SUMS_FILE}..."
 (
     cd "${OUT_DIR}"
-    sha256sum bzImage bzImage.unsigned shardkey.img initramfs.cpio.gz >SHA256SUMS
+    sha256sum bzImage bzImage.unsigned symbolon.img initramfs.cpio.gz >SHA256SUMS
 )
 
 log "Signing ${SUMS_FILE} -> ${SIG_FILE}..."

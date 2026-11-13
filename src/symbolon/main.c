@@ -20,7 +20,7 @@
 
 #define POLL_INTERVAL_MS 200u
 
-static void notify_event(const struct shardkey_ceremony_cfg *cfg,
+static void notify_event(const struct symbolon_ceremony_cfg *cfg,
                          const char *event,
                          uint8_t share_idx)
 {
@@ -30,15 +30,15 @@ static void notify_event(const struct shardkey_ceremony_cfg *cfg,
 }
 
 /*
- * Check if an inserted drive is the ShardKey boot stick or already holds
+ * Check if an inserted drive is the Symbolon boot stick or already holds
  * a completed earlier share (1 .. current_idx - 1) from the current ceremony.
  */
 static enum drive_existing_status inspect_inserted_drive(
-	const struct shardkey_ceremony_cfg *cfg,
+	const struct symbolon_ceremony_cfg *cfg,
 	const struct drive_info *drv,
 	uint8_t current_idx,
 	uint8_t total_shares,
-	const uint8_t set_id[SHARDKEY_SET_ID_LEN])
+	const uint8_t set_id[SYMBOLON_SET_ID_LEN])
 {
 	if (!cfg->skip_mount_syscalls) {
 		if (access(drv->part_node, R_OK) != 0) {
@@ -58,20 +58,20 @@ static enum drive_existing_status inspect_inserted_drive(
 	return st;
 }
 
-static int write_and_verify_one_share(struct shardkey_secpool *pool,
+static int write_and_verify_one_share(struct symbolon_secpool *pool,
                                       uint8_t idx,
                                       uint8_t k,
                                       uint8_t n,
-                                      const struct shardkey_ceremony_cfg *cfg)
+                                      const struct symbolon_ceremony_cfg *cfg)
 {
-	struct shardkey_share_record rec;
+	struct symbolon_share_record rec;
 	memset(&rec, 0, sizeof(rec));
 	rec.threshold = k;
 	rec.shares = n;
 	rec.index = idx;
-	memcpy(rec.set_id, pool->set_id, SHARDKEY_SET_ID_LEN);
-	memcpy(rec.fingerprint, pool->fingerprint, SHARDKEY_FINGERPRINT_LEN);
-	memcpy(rec.data, pool->shares[idx - 1u], SHARDKEY_SECRET_LEN);
+	memcpy(rec.set_id, pool->set_id, SYMBOLON_SET_ID_LEN);
+	memcpy(rec.fingerprint, pool->fingerprint, SYMBOLON_FINGERPRINT_LEN);
+	memcpy(rec.data, pool->shares[idx - 1u], SYMBOLON_SECRET_LEN);
 
 	size_t share_len = 0u;
 	if (share_fmt_encode(&rec, pool->share_file_buf,
@@ -131,7 +131,7 @@ static int write_and_verify_one_share(struct shardkey_secpool *pool,
 		}
 		if (ex == DRIVE_EXISTING_BOOT_STICK) {
 			if (ui_prompt_retry_share(cfg->in, cfg->out, idx, n,
-			        "this drive appears to be the ShardKey boot stick") < 0) {
+			        "this drive appears to be the Symbolon boot stick") < 0) {
 				secmem_zero(pool->share_file_buf, sizeof(pool->share_file_buf));
 				return -1;
 			}
@@ -277,9 +277,9 @@ static int write_and_verify_one_share(struct shardkey_secpool *pool,
 	return 0;
 }
 
-int shardkey_ceremony_run(const struct shardkey_ceremony_cfg *user_cfg)
+int symbolon_ceremony_run(const struct symbolon_ceremony_cfg *user_cfg)
 {
-	struct shardkey_ceremony_cfg cfg;
+	struct symbolon_ceremony_cfg cfg;
 	if (user_cfg != NULL) {
 		cfg = *user_cfg;
 	} else {
@@ -311,12 +311,12 @@ int shardkey_ceremony_run(const struct shardkey_ceremony_cfg *user_cfg)
 
 	if (secmem_lockdown(cfg.require_mlock) != 0) {
 		fprintf(cfg.err,
-		        "[shardkey] FATAL: failed to lock process memory (mlockall/prctl/rlimit).\n");
+		        "[symbolon] FATAL: failed to lock process memory (mlockall/prctl/rlimit).\n");
 		secmem_wipe_all();
 		return 1;
 	}
 
-	struct shardkey_secpool *pool = secmem_pool();
+	struct symbolon_secpool *pool = secmem_pool();
 
 	ui_print_banner(cfg.out);
 
@@ -327,7 +327,7 @@ int shardkey_ceremony_run(const struct shardkey_ceremony_cfg *user_cfg)
 	}
 	size_t usb_count = 0u;
 	if (drive_scan_usb(cfg.sys_block_dir, cfg.dev_dir, NULL, 0u, &usb_count) != 0) {
-		fprintf(cfg.err, "[shardkey] FATAL: cannot inspect %s.\n", cfg.sys_block_dir);
+		fprintf(cfg.err, "[symbolon] FATAL: cannot inspect %s.\n", cfg.sys_block_dir);
 		secmem_wipe_all();
 		return 1;
 	}
@@ -351,23 +351,23 @@ int shardkey_ceremony_run(const struct shardkey_ceremony_cfg *user_cfg)
 
 	/* 3. Collect >= 100 operator dice rolls */
 	if (ui_collect_dice(cfg.in, cfg.out, pool->dice_rolls,
-	                    SHARDKEY_MAX_DICE_ROLLS, &pool->dice_len) != 0 ||
+	                    SYMBOLON_MAX_DICE_ROLLS, &pool->dice_len) != 0 ||
 	    secmem_interrupted()) {
 		secmem_wipe_all();
 		return 1;
 	}
 
 	/* 4. Gather 64 bytes from kernel getrandom(..., 0) and mix with dice rolls */
-	if (entropy_get_kernel_random(pool->kernel_rnd, SHARDKEY_KERNEL_RND_LEN) != 0 ||
+	if (entropy_get_kernel_random(pool->kernel_rnd, SYMBOLON_KERNEL_RND_LEN) != 0 ||
 	    secmem_interrupted()) {
-		fprintf(cfg.err, "[shardkey] FATAL: getrandom() failed.\n");
+		fprintf(cfg.err, "[symbolon] FATAL: getrandom() failed.\n");
 		secmem_wipe_all();
 		return 1;
 	}
 	if (entropy_mix_seed(pool->kernel_rnd, pool->dice_rolls,
 	                     pool->dice_len, pool->seed) != 0 ||
 	    secmem_interrupted()) {
-		fprintf(cfg.err, "[shardkey] FATAL: entropy mixing failed.\n");
+		fprintf(cfg.err, "[symbolon] FATAL: entropy mixing failed.\n");
 		secmem_wipe_all();
 		return 1;
 	}
@@ -380,7 +380,7 @@ int shardkey_ceremony_run(const struct shardkey_ceremony_cfg *user_cfg)
 	if (entropy_derive_ceremony(pool->seed, k, pool->secret,
 	                            pool->coeffs, pool->set_id) != 0 ||
 	    secmem_interrupted()) {
-		fprintf(cfg.err, "[shardkey] FATAL: key derivation failed.\n");
+		fprintf(cfg.err, "[symbolon] FATAL: key derivation failed.\n");
 		secmem_wipe_all();
 		return 1;
 	}
@@ -388,7 +388,7 @@ int shardkey_ceremony_run(const struct shardkey_ceremony_cfg *user_cfg)
 
 	if (share_fmt_fingerprint(pool->secret, pool->fingerprint) != SHARE_FMT_OK ||
 	    secmem_interrupted()) {
-		fprintf(cfg.err, "[shardkey] FATAL: fingerprint computation failed.\n");
+		fprintf(cfg.err, "[symbolon] FATAL: fingerprint computation failed.\n");
 		secmem_wipe_all();
 		return 1;
 	}
@@ -396,7 +396,7 @@ int shardkey_ceremony_run(const struct shardkey_ceremony_cfg *user_cfg)
 	/* 6. Split secret into n shares and wipe polynomial coefficients */
 	if (shamir_split(pool->secret, pool->coeffs, k, n, pool->shares) != 0 ||
 	    secmem_interrupted()) {
-		fprintf(cfg.err, "[shardkey] FATAL: Shamir split failed.\n");
+		fprintf(cfg.err, "[symbolon] FATAL: Shamir split failed.\n");
 		secmem_wipe_all();
 		return 1;
 	}
@@ -404,10 +404,10 @@ int shardkey_ceremony_run(const struct shardkey_ceremony_cfg *user_cfg)
 
 	/* 7. Verify in RAM that EVERY k-subset reconstructs the exact secret */
 	if (shamir_verify_all_subsets(pool->secret,
-	                              (const uint8_t (*)[SHARDKEY_SECRET_LEN])pool->shares,
+	                              (const uint8_t (*)[SYMBOLON_SECRET_LEN])pool->shares,
 	                              k, n) != 0 ||
 	    secmem_interrupted()) {
-		fprintf(cfg.err, "[shardkey] FATAL: Shamir k-subset self-test failed.\n");
+		fprintf(cfg.err, "[symbolon] FATAL: Shamir k-subset self-test failed.\n");
 		secmem_wipe_all();
 		return 1;
 	}
@@ -420,13 +420,13 @@ int shardkey_ceremony_run(const struct shardkey_ceremony_cfg *user_cfg)
 	for (uint8_t idx = 1u; idx <= n; idx++) {
 		if (write_and_verify_one_share(pool, idx, k, n, &cfg) != 0) {
 			fprintf(cfg.err,
-			        "[shardkey] Ceremony aborted while processing share %u/%u.\n",
+			        "[symbolon] Ceremony aborted while processing share %u/%u.\n",
 			        (unsigned int)idx, (unsigned int)n);
 			secmem_wipe_all();
 			return 1;
 		}
 		/* Wipe share idx from RAM as soon as it is verified on its USB drive */
-		secmem_zero(pool->shares[idx - 1u], SHARDKEY_SECRET_LEN);
+		secmem_zero(pool->shares[idx - 1u], SYMBOLON_SECRET_LEN);
 	}
 
 	fprintf(cfg.out, "\nAll %u shares written and verified. Wiping memory...\n",
@@ -437,7 +437,7 @@ int shardkey_ceremony_run(const struct shardkey_ceremony_cfg *user_cfg)
 	return 0;
 }
 
-#ifndef SHARDKEY_TEST_BUILD
+#ifndef SYMBOLON_TEST_BUILD
 static void attach_console_ctty(void)
 {
 	if (tcgetpgrp(STDIN_FILENO) >= 0) {
@@ -504,6 +504,6 @@ static void attach_console_ctty(void)
 int main(void)
 {
 	attach_console_ctty();
-	return shardkey_ceremony_run(NULL);
+	return symbolon_ceremony_run(NULL);
 }
-#endif /* !SHARDKEY_TEST_BUILD */
+#endif /* !SYMBOLON_TEST_BUILD */

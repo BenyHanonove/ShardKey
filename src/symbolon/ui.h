@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-#ifndef SHARDKEY_UI_H
-#define SHARDKEY_UI_H
+#ifndef SYMBOLON_UI_H
+#define SYMBOLON_UI_H
 
 #include "drive.h"
 #include "secmem.h"
@@ -44,8 +44,8 @@ int ui_collect_dice(FILE *in,
 void ui_print_ceremony_info(FILE *out,
                             uint8_t k,
                             uint8_t n,
-                            const uint8_t set_id[SHARDKEY_SET_ID_LEN],
-                            const uint8_t fingerprint[SHARDKEY_FINGERPRINT_LEN]);
+                            const uint8_t set_id[SYMBOLON_SET_ID_LEN],
+                            const uint8_t fingerprint[SYMBOLON_FINGERPRINT_LEN]);
 
 /*
  * Show detected USB drive details (device, size, vendor, model) for share i/n
@@ -62,7 +62,7 @@ int ui_confirm_erase_drive(FILE *in,
  * Format the 4-character uppercase hex short set ID (first 2 bytes of set_id)
  * used on physical drive labels (e.g. "7F3A").
  */
-void ui_short_set_id(const uint8_t set_id[SHARDKEY_SET_ID_LEN], char out_short[5]);
+void ui_short_set_id(const uint8_t set_id[SYMBOLON_SET_ID_LEN], char out_short[5]);
 
 /*
  * Offer to retry the current share after a drive error, or abort the ceremony.
@@ -76,9 +76,9 @@ int ui_prompt_retry_share(FILE *in,
 
 /*
  * Ceremony runtime configuration (NULL uses production defaults:
- * stdin/stdout/stderr, /sys/block, /dev, /mnt, /lib/shardkey/prep-drive.sh).
+ * stdin/stdout/stderr, /sys/block, /dev, /mnt, /lib/symbolon/prep-drive.sh).
  */
-struct shardkey_ceremony_cfg {
+struct symbolon_ceremony_cfg {
 	FILE        *in;
 	FILE        *out;
 	FILE        *err;
@@ -93,7 +93,7 @@ struct shardkey_ceremony_cfg {
 	void        *user_data;
 };
 
-/* Run the full ShardKey ceremony state machine (returns 0 on success, 1 on failure) */
-int shardkey_ceremony_run(const struct shardkey_ceremony_cfg *cfg);
+/* Run the full Symbolon ceremony state machine (returns 0 on success, 1 on failure) */
+int symbolon_ceremony_run(const struct symbolon_ceremony_cfg *cfg);
 
-#endif /* SHARDKEY_UI_H */
+#endif /* SYMBOLON_UI_H */

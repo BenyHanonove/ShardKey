@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-#ifndef SHARDKEY_POLICY_H
-#define SHARDKEY_POLICY_H
+#ifndef SYMBOLON_POLICY_H
+#define SYMBOLON_POLICY_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -36,4 +36,4 @@ bool policy_is_yes(const char *line);
 /* Return true iff line (after trimming leading/trailing whitespace) is "ABORT" or "abort" */
 bool policy_is_abort(const char *line);
 
-#endif /* SHARDKEY_POLICY_H */
+#endif /* SYMBOLON_POLICY_H */

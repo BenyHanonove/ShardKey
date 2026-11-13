@@ -259,13 +259,13 @@ info "Config check OK: all ${#REQUIRED_CONFIG_Y[@]} required options enabled and
 # ─────────────────────────────────────────────────────────────
 # 4. Functional smoke check (ash, sh, and standalone mode)
 # ─────────────────────────────────────────────────────────────
-sh_out="$("${BUSYBOX_BIN}" sh -c 'echo shardkey-sh-ok')" || die "Failed to execute 'busybox sh'"
-if [[ "${sh_out}" != "shardkey-sh-ok" ]]; then
+sh_out="$("${BUSYBOX_BIN}" sh -c 'echo symbolon-sh-ok')" || die "Failed to execute 'busybox sh'"
+if [[ "${sh_out}" != "symbolon-sh-ok" ]]; then
     die "Unexpected output from 'busybox sh': '${sh_out}'"
 fi
 
-ash_out="$("${BUSYBOX_BIN}" ash -c 'echo shardkey-ash-ok')" || die "Failed to execute 'busybox ash'"
-if [[ "${ash_out}" != "shardkey-ash-ok" ]]; then
+ash_out="$("${BUSYBOX_BIN}" ash -c 'echo symbolon-ash-ok')" || die "Failed to execute 'busybox ash'"
+if [[ "${ash_out}" != "symbolon-ash-ok" ]]; then
     die "Unexpected output from 'busybox ash': '${ash_out}'"
 fi
 

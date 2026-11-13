@@ -13,13 +13,13 @@
 #include <termios.h>
 #include <unistd.h>
 
-static _Alignas(64) struct shardkey_secpool g_secpool;
+static _Alignas(64) struct symbolon_secpool g_secpool;
 static volatile sig_atomic_t g_interrupted = 0;
 static volatile sig_atomic_t g_tty_fd = -1;
 static struct termios g_tty_orig;
 static bool g_atexit_registered = false;
 
-struct shardkey_secpool *secmem_pool(void)
+struct symbolon_secpool *secmem_pool(void)
 {
 	return &g_secpool;
 }
